@@ -16,16 +16,45 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
 
   const perplexityResult = getPerplexityResult(claim.id);
   const isVerifying = isVerifyingClaim(claim.id);
+  const hasPerplexityResult = !!(perplexityResult && claim.verificationState === 'verified-perplexity');
+
+  // Debug logging
+  console.log('ClaimCard Debug:', {
+    claimId: claim.id,
+    verificationState: claim.verificationState,
+    perplexityResult: perplexityResult,
+    hasPerplexityResult: hasPerplexityResult,
+    isVerifying: isVerifying
+  });
 
   const handleStatusChange = (status: Claim['status']) => {
     updateClaimStatus(claim.id, status);
   };
 
   const handlePerplexityVerify = () => {
+    console.log('Verify with Perplexity clicked for claim:', claim.id);
     verifyClaimWithPerplexity(claim.id);
   };
 
   const getStatusIcon = () => {
+    // If we have Perplexity results, show appropriate icon
+    if (hasPerplexityResult) {
+      switch (perplexityResult.status) {
+        case 'verified_true':
+          return <Check size={16} />;
+        case 'verified_false':
+          return <X size={16} />;
+        case 'partially_true':
+        case 'needs_context':
+          return <AlertCircle size={16} />;
+        case 'cannot_find_answer':
+          return <HelpCircle size={16} />;
+        default:
+          return <Globe size={16} />;
+      }
+    }
+
+    // Otherwise show manual verification status
     switch (claim.status) {
       case 'true':
         return <Check size={16} />;
@@ -38,8 +67,39 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
     }
   };
 
+  const getDisplayStatus = () => {
+    // Prioritize Perplexity status if available
+    if (hasPerplexityResult) {
+      return getPerplexityStatusText(perplexityResult.status);
+    }
+    
+    // Otherwise show manual status
+    return claim.status === 'unverified' ? 'Unverified' : claim.status;
+  };
+
+  const getStatusClass = () => {
+    // Use Perplexity status class if available
+    if (hasPerplexityResult) {
+      return `status-${getPerplexityStatusClass(perplexityResult.status)}`;
+    }
+    
+    // Otherwise use manual status class
+    return `status-${claim.status}`;
+  };
+
   const getConfidencePercentage = () => {
+    // Use Perplexity confidence if available
+    if (hasPerplexityResult && perplexityResult.confidence) {
+      return (perplexityResult.confidence / 10) * 100;
+    }
     return (claim.confidence / 10) * 100;
+  };
+
+  const getConfidenceValue = () => {
+    if (hasPerplexityResult && perplexityResult.confidence) {
+      return perplexityResult.confidence;
+    }
+    return claim.confidence;
   };
 
   const getPerplexityStatusText = (status: string) => {
@@ -78,7 +138,7 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
 
   return (
     <div
-      className={`claim-card status-${claim.status} fade-in`}
+      className={`claim-card ${getStatusClass()} fade-in`}
       onMouseEnter={() => onHover?.(claim.id)}
       onMouseLeave={() => onHover?.(null)}
     >
@@ -87,10 +147,16 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
           <span className={`category-badge ${claim.category}`}>
             {claim.category}
           </span>
-          <span className={`status-badge status-${claim.status}`}>
+          <span className={`status-badge ${getStatusClass()}`}>
             {getStatusIcon()}
-            {claim.status === 'unverified' ? 'Unverified' : claim.status}
+            {getDisplayStatus()}
           </span>
+          {hasPerplexityResult && (
+            <span className="verification-type-badge">
+              <Globe size={12} />
+              AI Verified
+            </span>
+          )}
         </div>
         <div className="claim-confidence">
           <span className="label">Confidence</span>
@@ -100,7 +166,7 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
               style={{ width: `${getConfidencePercentage()}%` }}
             />
           </div>
-          <span className="confidence-value">{claim.confidence}/10</span>
+          <span className="confidence-value">{getConfidenceValue()}/10</span>
         </div>
       </div>
 
@@ -108,31 +174,34 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
         <p className="claim-text">{claim.text}</p>
       </div>
 
-      {perplexityResult && claim.verificationState === 'verified-perplexity' && (
-        <div className={`perplexity-results ${getPerplexityStatusClass(perplexityResult.status)}`}>
-          <div className="perplexity-header">
-            <Globe size={16} />
-            <span className="perplexity-status">{getPerplexityStatusText(perplexityResult.status)}</span>
-            <span className="perplexity-timestamp">
-              {new Date(perplexityResult.timestamp).toLocaleString()}
-            </span>
-          </div>
+      {hasPerplexityResult && (
+        <div className={`perplexity-note ${getPerplexityStatusClass(perplexityResult.status)}`}>
           <p className="perplexity-reasoning">{perplexityResult.reasoning}</p>
           {perplexityResult.sources.length > 0 && (
-            <div className="perplexity-sources">
+            <div className="perplexity-sources-compact">
               <span className="sources-label">Sources:</span>
-              {perplexityResult.sources.map((source, index) => (
-                <a
-                  key={index}
-                  href={source}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="source-link"
-                >
-                  <ExternalLink size={12} />
-                  {new URL(source).hostname}
-                </a>
-              ))}
+              {perplexityResult.sources.slice(0, 2).map((source, index) => {
+                try {
+                  const hostname = new URL(source).hostname.replace('www.', '');
+                  return (
+                    <a
+                      key={index}
+                      href={source}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="source-link-compact"
+                      title={source}
+                    >
+                      {hostname}
+                    </a>
+                  );
+                } catch {
+                  return null;
+                }
+              })}
+              {perplexityResult.sources.length > 2 && (
+                <span className="more-sources">+{perplexityResult.sources.length - 2} more</span>
+              )}
             </div>
           )}
         </div>

@@ -39,6 +39,8 @@ export type AppAction =
   | { type: 'SET_COMPANY_TYPE'; payload: 'external' | 'internal' }
   | { type: 'SET_PERPLEXITY_RESULT'; payload: { claimId: string; result: PerplexityResult } }
   | { type: 'SET_CLAIM_VERIFYING'; payload: { claimId: string; isVerifying: boolean } }
+  | { type: 'SET_CLAIM_VERIFIED'; payload: { claimId: string; result: PerplexityResult } }
+  | { type: 'SET_CLAIM_VERIFICATION_ERROR'; payload: { claimId: string; error: string } }
   | { type: 'RESET' };
 
 export interface ClaimExtractionResponse {

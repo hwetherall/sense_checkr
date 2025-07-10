@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, X, AlertCircle, HelpCircle } from 'lucide-react';
+import { Check, X, AlertCircle, HelpCircle, Globe } from 'lucide-react';
 import { Claim } from '../../types';
 
 interface ProgressIndicatorProps {
@@ -8,16 +8,21 @@ interface ProgressIndicatorProps {
 }
 
 export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorProps) {
+  // Count claims by status and by AI verification
   const statusCounts = claims.reduce(
     (acc, claim) => {
       acc[claim.status]++;
       acc.total++;
+      if (claim.verificationState === 'verified-perplexity') {
+        acc.aiVerified++;
+      }
       return acc;
     },
-    { unverified: 0, true: 0, false: 0, assumption: 0, total: 0 }
+    { unverified: 0, true: 0, false: 0, assumption: 0, aiVerified: 0, total: 0 }
   );
 
-  const verifiedCount = statusCounts.true + statusCounts.false + statusCounts.assumption;
+  // A claim is "verified" if it is true/false/assumption OR AI-verified
+  const verifiedCount = statusCounts.true + statusCounts.false + statusCounts.assumption + statusCounts.aiVerified;
   const progressPercentage = claims.length > 0 ? (verifiedCount / claims.length) * 100 : 0;
 
   return (
@@ -71,6 +76,13 @@ export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorP
           </div>
           <span className="status-label">Unverified</span>
           <span className="status-count">{statusCounts.unverified}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon ai-verified">
+            <Globe size={16} />
+          </div>
+          <span className="status-label">AI Verified</span>
+          <span className="status-count">{statusCounts.aiVerified}</span>
         </div>
       </div>
     </div>

@@ -85,108 +85,6 @@ vercel.json
 <files>
 This section contains the contents of the repository's files.
 
-<file path="client/src/hooks/usePerplexityVerification.ts">
-import { useCallback } from 'react';
-import { useApp } from '../contexts/AppContext';
-import { PerplexityResult } from '../types';
-
-export function usePerplexityVerification() {
-  const { state, dispatch } = useApp();
-
-  const verifyClaimWithPerplexity = useCallback(
-    async (claimId: string) => {
-      const claim = state.claims.find(c => c.id === claimId);
-      if (!claim) {
-        console.error('Claim not found:', claimId);
-        return;
-      }
-
-      // Set verifying state
-      dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: true } });
-
-      try {
-        const response = await fetch('/api/claims/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            claimText: claim.text,
-            memoText: state.memoText,
-            companyType: state.companyType,
-            claimId: claim.id,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error?.message || 'Verification failed');
-        }
-
-        const data = await response.json();
-        
-        // Update claim with verification result
-        dispatch({
-          type: 'SET_PERPLEXITY_RESULT',
-          payload: {
-            claimId,
-            result: data.verificationResult,
-          },
-        });
-
-        // Update claim state to show verification is complete
-        const updatedClaims = state.claims.map(c =>
-          c.id === claimId
-            ? { ...c, verificationState: 'verified-perplexity' as const }
-            : c
-        );
-        dispatch({ type: 'SET_CLAIMS', payload: updatedClaims });
-
-      } catch (error) {
-        console.error('Perplexity verification error:', error);
-        
-        // Update claim state to show error
-        const updatedClaims = state.claims.map(c =>
-          c.id === claimId
-            ? { ...c, verificationState: 'verification-error' as const }
-            : c
-        );
-        dispatch({ type: 'SET_CLAIMS', payload: updatedClaims });
-
-        // Show error message
-        dispatch({
-          type: 'SET_ERROR',
-          payload: error instanceof Error ? error.message : 'Verification failed',
-        });
-      } finally {
-        // Clear verifying state
-        dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: false } });
-      }
-    },
-    [state.claims, state.memoText, state.companyType, dispatch]
-  );
-
-  const getPerplexityResult = useCallback(
-    (claimId: string): PerplexityResult | undefined => {
-      return state.perplexityResults[claimId];
-    },
-    [state.perplexityResults]
-  );
-
-  const isVerifyingClaim = useCallback(
-    (claimId: string): boolean => {
-      const claim = state.claims.find(c => c.id === claimId);
-      return claim?.verificationState === 'verifying-perplexity' || false;
-    },
-    [state.claims]
-  );
-
-  return {
-    verifyClaimWithPerplexity,
-    getPerplexityResult,
-    isVerifyingClaim,
-  };
-}
-</file>
-
 <file path="client/.gitignore">
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
@@ -241,6 +139,7 @@ yarn-error.log*
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
+  "proxy": "http://localhost:5000",
   "eslintConfig": {
     "extends": [
       "react-app",
@@ -449,218 +348,6 @@ function App() {
 export default App;
 </file>
 
-<file path="client/src/components/claims/ClaimCard.tsx">
-import React, { useState } from 'react';
-import { Check, X, AlertCircle, HelpCircle, Globe, FileText, User, Loader, ExternalLink } from 'lucide-react';
-import { Claim } from '../../types';
-import { useClaimExtraction } from '../../hooks/useClaimExtraction';
-import { usePerplexityVerification } from '../../hooks/usePerplexityVerification';
-
-interface ClaimCardProps {
-  claim: Claim;
-  onHover?: (claimId: string | null) => void;
-}
-
-export function ClaimCard({ claim, onHover }: ClaimCardProps) {
-  const { updateClaimStatus } = useClaimExtraction();
-  const { verifyClaimWithPerplexity, getPerplexityResult, isVerifyingClaim } = usePerplexityVerification();
-  const [showManualVerify, setShowManualVerify] = useState(false);
-
-  const perplexityResult = getPerplexityResult(claim.id);
-  const isVerifying = isVerifyingClaim(claim.id);
-
-  const handleStatusChange = (status: Claim['status']) => {
-    updateClaimStatus(claim.id, status);
-  };
-
-  const handlePerplexityVerify = () => {
-    verifyClaimWithPerplexity(claim.id);
-  };
-
-  const getStatusIcon = () => {
-    switch (claim.status) {
-      case 'true':
-        return <Check size={16} />;
-      case 'false':
-        return <X size={16} />;
-      case 'assumption':
-        return <AlertCircle size={16} />;
-      default:
-        return <HelpCircle size={16} />;
-    }
-  };
-
-  const getConfidencePercentage = () => {
-    return (claim.confidence / 10) * 100;
-  };
-
-  const getPerplexityStatusText = (status: string) => {
-    switch (status) {
-      case 'verified_true':
-        return 'Verified True';
-      case 'verified_false':
-        return 'Verified False';
-      case 'partially_true':
-        return 'Partially True';
-      case 'needs_context':
-        return 'Needs Context';
-      case 'cannot_find_answer':
-        return 'Cannot Find Answer';
-      default:
-        return status;
-    }
-  };
-
-  const getPerplexityStatusClass = (status: string) => {
-    switch (status) {
-      case 'verified_true':
-        return 'perplexity-true';
-      case 'verified_false':
-        return 'perplexity-false';
-      case 'partially_true':
-        return 'perplexity-partial';
-      case 'needs_context':
-        return 'perplexity-context';
-      case 'cannot_find_answer':
-        return 'perplexity-unknown';
-      default:
-        return '';
-    }
-  };
-
-  return (
-    <div
-      className={`claim-card status-${claim.status} fade-in`}
-      onMouseEnter={() => onHover?.(claim.id)}
-      onMouseLeave={() => onHover?.(null)}
-    >
-      <div className="claim-header">
-        <div className="claim-badges">
-          <span className={`category-badge ${claim.category}`}>
-            {claim.category}
-          </span>
-          <span className={`status-badge status-${claim.status}`}>
-            {getStatusIcon()}
-            {claim.status === 'unverified' ? 'Unverified' : claim.status}
-          </span>
-        </div>
-        <div className="claim-confidence">
-          <span className="label">Confidence</span>
-          <div className="confidence-bar">
-            <div
-              className="confidence-fill"
-              style={{ width: `${getConfidencePercentage()}%` }}
-            />
-          </div>
-          <span className="confidence-value">{claim.confidence}/10</span>
-        </div>
-      </div>
-
-      <div className="claim-content">
-        <p className="claim-text">{claim.text}</p>
-      </div>
-
-      {perplexityResult && claim.verificationState === 'verified-perplexity' && (
-        <div className={`perplexity-results ${getPerplexityStatusClass(perplexityResult.status)}`}>
-          <div className="perplexity-header">
-            <Globe size={16} />
-            <span className="perplexity-status">{getPerplexityStatusText(perplexityResult.status)}</span>
-            <span className="perplexity-timestamp">
-              {new Date(perplexityResult.timestamp).toLocaleString()}
-            </span>
-          </div>
-          <p className="perplexity-reasoning">{perplexityResult.reasoning}</p>
-          {perplexityResult.sources.length > 0 && (
-            <div className="perplexity-sources">
-              <span className="sources-label">Sources:</span>
-              {perplexityResult.sources.map((source, index) => (
-                <a
-                  key={index}
-                  href={source}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="source-link"
-                >
-                  <ExternalLink size={12} />
-                  {new URL(source).hostname}
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {claim.verificationState === 'verification-error' && (
-        <div className="verification-error-message">
-          <AlertCircle size={16} />
-          <span>Verification failed. Please try again.</span>
-        </div>
-      )}
-
-      <div className="claim-actions">
-        <p className="label">Verify this claim:</p>
-        <div className="verification-options">
-          <button
-            onClick={handlePerplexityVerify}
-            className={`btn btn-sm btn-icon ${isVerifying ? 'btn-loading' : ''}`}
-            disabled={isVerifying || claim.verificationState === 'verified-perplexity'}
-            aria-label="Verify with Perplexity"
-          >
-            {isVerifying ? <Loader className="spinner" size={16} /> : <Globe size={16} />}
-            Verify with Perplexity
-          </button>
-          <button
-            className="btn btn-sm btn-icon btn-disabled"
-            disabled={true}
-            aria-label="Verify with Docs (Coming Soon)"
-          >
-            <FileText size={16} />
-            Verify with Docs
-          </button>
-          <button
-            onClick={() => setShowManualVerify(!showManualVerify)}
-            className={`btn btn-sm btn-icon ${showManualVerify ? 'btn-active' : ''}`}
-            aria-label="Verify by Human"
-          >
-            <User size={16} />
-            Verify by Human
-          </button>
-        </div>
-        
-        {showManualVerify && (
-          <div className="status-buttons">
-            <button
-              onClick={() => handleStatusChange('true')}
-              className={`btn btn-sm ${claim.status === 'true' ? 'btn-primary' : 'btn-ghost'}`}
-              aria-label="Mark as true"
-            >
-              <Check size={16} />
-              True
-            </button>
-            <button
-              onClick={() => handleStatusChange('false')}
-              className={`btn btn-sm ${claim.status === 'false' ? 'btn-primary' : 'btn-ghost'}`}
-              aria-label="Mark as false"
-            >
-              <X size={16} />
-              False
-            </button>
-            <button
-              onClick={() => handleStatusChange('assumption')}
-              className={`btn btn-sm ${claim.status === 'assumption' ? 'btn-primary' : 'btn-ghost'}`}
-              aria-label="Mark as assumption"
-            >
-              <AlertCircle size={16} />
-              Assumption
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-</file>
-
 <file path="client/src/components/claims/ClaimsList.tsx">
 import React from 'react';
 import { ClaimCard } from './ClaimCard';
@@ -769,87 +456,6 @@ const styles = `
 `;
 
 export const claimsListStyles = styles;
-</file>
-
-<file path="client/src/components/claims/ProgressIndicator.tsx">
-import React from 'react';
-import { Check, X, AlertCircle, HelpCircle } from 'lucide-react';
-import { Claim } from '../../types';
-
-interface ProgressIndicatorProps {
-  claims: Claim[];
-  processingTime?: number | null;
-}
-
-export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorProps) {
-  const statusCounts = claims.reduce(
-    (acc, claim) => {
-      acc[claim.status]++;
-      acc.total++;
-      return acc;
-    },
-    { unverified: 0, true: 0, false: 0, assumption: 0, total: 0 }
-  );
-
-  const verifiedCount = statusCounts.true + statusCounts.false + statusCounts.assumption;
-  const progressPercentage = claims.length > 0 ? (verifiedCount / claims.length) * 100 : 0;
-
-  return (
-    <div className="progress-indicator">
-      <div className="progress-header">
-        <h3 className="headline-3">Verification Progress</h3>
-        {processingTime && (
-          <p className="processing-time">
-            Extracted in {(processingTime / 1000).toFixed(1)}s
-          </p>
-        )}
-      </div>
-
-      <div className="progress-bar-container">
-        <div className="progress-bar">
-          <div
-            className="progress-fill"
-            style={{ width: `${progressPercentage}%` }}
-          />
-        </div>
-        <p className="progress-text">
-          {verifiedCount} of {claims.length} claims verified ({Math.round(progressPercentage)}%)
-        </p>
-      </div>
-
-      <div className="status-summary">
-        <div className="status-item">
-          <div className="status-icon true">
-            <Check size={16} />
-          </div>
-          <span className="status-label">True</span>
-          <span className="status-count">{statusCounts.true}</span>
-        </div>
-        <div className="status-item">
-          <div className="status-icon false">
-            <X size={16} />
-          </div>
-          <span className="status-label">False</span>
-          <span className="status-count">{statusCounts.false}</span>
-        </div>
-        <div className="status-item">
-          <div className="status-icon assumption">
-            <AlertCircle size={16} />
-          </div>
-          <span className="status-label">Assumptions</span>
-          <span className="status-count">{statusCounts.assumption}</span>
-        </div>
-        <div className="status-item">
-          <div className="status-icon unverified">
-            <HelpCircle size={16} />
-          </div>
-          <span className="status-label">Unverified</span>
-          <span className="status-count">{statusCounts.unverified}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 </file>
 
 <file path="client/src/components/common/ErrorBoundary.tsx">
@@ -1166,402 +772,6 @@ const styles = `
 export const loadingSpinnerStyles = styles;
 </file>
 
-<file path="client/src/components/memo/MemoHighlighter.tsx">
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
-import { ClaimsList } from '../claims/ClaimsList';
-import { ProgressIndicator } from '../claims/ProgressIndicator';
-import { Claim } from '../../types';
-
-export function MemoHighlighter() {
-  const { state, dispatch } = useApp();
-  const { memoText, claims, processingTime } = state;
-  const [hoveredClaimId, setHoveredClaimId] = useState<string | null>(null);
-  const [isMemoCollapsed, setIsMemoCollapsed] = useState(true);
-  const memoRef = useRef<HTMLDivElement>(null);
-
-  const highlightedMemo = useMemo(() => {
-    if (!memoText || claims.length === 0) return memoText;
-
-    const sortedClaims = [...claims].sort((a, b) => a.range[0] - b.range[0]);
-    let result = [];
-    let lastIndex = 0;
-
-    sortedClaims.forEach((claim) => {
-      const [start, end] = claim.range;
-      
-      // Add text before the claim
-      if (start > lastIndex) {
-        result.push(
-          <span key={`text-${lastIndex}`}>
-            {memoText.slice(lastIndex, start)}
-          </span>
-        );
-      }
-
-      // Add the highlighted claim
-      const isHovered = hoveredClaimId === claim.id;
-      result.push(
-        <span
-          key={`claim-${claim.id}`}
-          className={`highlighted-claim status-${claim.status} ${isHovered ? 'hovered' : ''}`}
-          data-claim-id={claim.id}
-          onMouseEnter={() => setHoveredClaimId(claim.id)}
-          onMouseLeave={() => setHoveredClaimId(null)}
-        >
-          {memoText.slice(start, end)}
-        </span>
-      );
-
-      lastIndex = end;
-    });
-
-    // Add remaining text
-    if (lastIndex < memoText.length) {
-      result.push(
-        <span key={`text-${lastIndex}`}>
-          {memoText.slice(lastIndex)}
-        </span>
-      );
-    }
-
-    return result;
-  }, [memoText, claims, hoveredClaimId]);
-
-  // Scroll to highlighted claim when hovering
-  useEffect(() => {
-    if (hoveredClaimId && memoRef.current) {
-      const element = memoRef.current.querySelector(`[data-claim-id="${hoveredClaimId}"]`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-  }, [hoveredClaimId]);
-
-  const handleBackToInput = () => {
-    dispatch({ type: 'RESET' });
-  };
-
-  const toggleMemoCollapse = () => {
-    setIsMemoCollapsed(!isMemoCollapsed);
-  };
-
-  return (
-    <div className="memo-highlighter">
-      <div className="highlighter-header">
-        <button onClick={handleBackToInput} className="btn btn-ghost btn-icon">
-          <ArrowLeft size={20} />
-          Back to Input
-        </button>
-        <h2 className="headline-2">Verify Investment Memo Claims</h2>
-      </div>
-
-      <div className={`highlighter-content ${isMemoCollapsed ? 'memo-collapsed' : ''}`}>
-        <div className={`memo-panel ${isMemoCollapsed ? 'collapsed' : ''}`}>
-          <div className="panel-header">
-            <div className="panel-header-content">
-              <h3 className="headline-3">Original Memo</h3>
-              <button
-                onClick={toggleMemoCollapse}
-                className="btn btn-ghost btn-icon collapse-toggle"
-                aria-label={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
-                title={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
-              >
-                {isMemoCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-              </button>
-            </div>
-            {!isMemoCollapsed && (
-              <p className="body-small">Hover over claims to highlight them in the text</p>
-            )}
-          </div>
-          {!isMemoCollapsed && (
-            <div ref={memoRef} className="memo-text-container">
-              <p className="memo-text">{highlightedMemo}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="claims-panel">
-          <div className="sticky-progress-wrapper">
-            <ProgressIndicator claims={claims} processingTime={processingTime} />
-          </div>
-          <div className="claims-list-wrapper">
-            <ClaimsList claims={claims} onClaimHover={setHoveredClaimId} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="client/src/components/memo/MemoInput.tsx">
-import React, { useState, useCallback, ChangeEvent } from 'react';
-import { FileText, Send, Building2, Briefcase } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
-import { useClaimExtraction } from '../../hooks/useClaimExtraction';
-
-export function MemoInput() {
-  const { state, dispatch } = useApp();
-  const { memoText, error, companyType } = state;
-  const { extractClaims, fetchSampleMemo, isExtracting } = useClaimExtraction();
-  const [isLoadingSample, setIsLoadingSample] = useState(false);
-
-  const handleTextChange = useCallback(
-    (e: ChangeEvent<HTMLTextAreaElement>) => {
-      dispatch({ type: 'SET_MEMO_TEXT', payload: e.target.value });
-      if (error) {
-        dispatch({ type: 'SET_ERROR', payload: null });
-      }
-    },
-    [dispatch, error]
-  );
-
-  const handleCompanyTypeChange = useCallback(
-    (type: 'external' | 'internal') => {
-      dispatch({ type: 'SET_COMPANY_TYPE', payload: type });
-    },
-    [dispatch]
-  );
-
-  const handleUseSample = useCallback(async () => {
-    setIsLoadingSample(true);
-    try {
-      const sampleMemo = await fetchSampleMemo();
-      dispatch({ type: 'SET_MEMO_TEXT', payload: sampleMemo });
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to load sample memo' });
-    } finally {
-      setIsLoadingSample(false);
-    }
-  }, [fetchSampleMemo, dispatch]);
-
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (memoText.trim().length < 50) {
-        dispatch({ type: 'SET_ERROR', payload: 'Please enter at least 50 characters' });
-        return;
-      }
-      await extractClaims(memoText);
-    },
-    [memoText, extractClaims, dispatch]
-  );
-
-  const characterCount = memoText.length;
-  const isValid = characterCount >= 50 && characterCount <= 20000;
-
-  return (
-    <div className="memo-input-container">
-      <div className="memo-input-header">
-        <h2 className="headline-2">Investment Memo Input</h2>
-        <p className="subtitle">
-          Paste your investment memo below and we'll extract all factual claims for verification
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="memo-form">
-        <div className="form-group">
-          <label className="form-label">Company Type</label>
-          <div className="company-type-toggle">
-            <label className={`radio-option ${companyType === 'external' ? 'active' : ''}`}>
-              <input
-                type="radio"
-                name="companyType"
-                value="external"
-                checked={companyType === 'external'}
-                onChange={() => handleCompanyTypeChange('external')}
-                disabled={isExtracting}
-              />
-              <Building2 size={20} />
-              <div>
-                <span className="radio-label">External Company</span>
-                <span className="radio-help">Real companies that exist publicly</span>
-              </div>
-            </label>
-            <label className={`radio-option ${companyType === 'internal' ? 'active' : ''}`}>
-              <input
-                type="radio"
-                name="companyType"
-                value="internal"
-                checked={companyType === 'internal'}
-                onChange={() => handleCompanyTypeChange('internal')}
-                disabled={isExtracting}
-              />
-              <Briefcase size={20} />
-              <div>
-                <span className="radio-label">Internal Venture</span>
-                <span className="radio-help">Internal corporate projects</span>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="memo-text" className="form-label">
-            Memo Text
-          </label>
-          <textarea
-            id="memo-text"
-            value={memoText}
-            onChange={handleTextChange}
-            className="form-textarea memo-textarea"
-            placeholder="Paste your investment memo here..."
-            disabled={isExtracting}
-            aria-describedby="character-count"
-          />
-          <div className="form-footer">
-            <button
-              type="button"
-              onClick={handleUseSample}
-              className="btn btn-secondary btn-sm"
-              disabled={isExtracting || isLoadingSample}
-            >
-              <FileText size={16} />
-              Use Sample Memo
-            </button>
-            <div id="character-count" className="character-count">
-              {characterCount} / 20,000 characters
-              {characterCount < 50 && characterCount > 0 && (
-                <span className="text-error"> (minimum 50)</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {error && (
-          <div className="error-message" role="alert">
-            {error}
-          </div>
-        )}
-
-        <div className="form-actions">
-          <button
-            type="submit"
-            className="btn btn-primary btn-lg btn-icon"
-            disabled={!isValid || isExtracting}
-          >
-            <Send size={20} />
-            {isExtracting ? 'Extracting Claims...' : 'Extract Claims'}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-</file>
-
-<file path="client/src/contexts/AppContext.tsx">
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { AppState, AppAction } from '../types';
-
-interface AppContextType {
-  state: AppState;
-  dispatch: React.Dispatch<AppAction>;
-}
-
-const initialState: AppState = {
-  currentStep: 'input',
-  memoText: '',
-  claims: [],
-  isLoading: false,
-  error: null,
-  processingTime: null,
-  companyType: 'external',
-  perplexityResults: {},
-};
-
-const AppContext = createContext<AppContextType | undefined>(undefined);
-
-function appReducer(state: AppState, action: AppAction): AppState {
-  switch (action.type) {
-    case 'SET_STEP':
-      return { ...state, currentStep: action.payload };
-    
-    case 'SET_MEMO_TEXT':
-      return { ...state, memoText: action.payload };
-    
-    case 'SET_CLAIMS':
-      return { ...state, claims: action.payload };
-    
-    case 'UPDATE_CLAIM_STATUS':
-      return {
-        ...state,
-        claims: state.claims.map(claim =>
-          claim.id === action.payload.id
-            ? { ...claim, status: action.payload.status }
-            : claim
-        ),
-      };
-    
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-    
-    case 'SET_ERROR':
-      return { ...state, error: action.payload };
-    
-    case 'SET_PROCESSING_TIME':
-      return { ...state, processingTime: action.payload };
-    
-    case 'SET_COMPANY_TYPE':
-      return { ...state, companyType: action.payload };
-    
-    case 'SET_PERPLEXITY_RESULT':
-      return {
-        ...state,
-        perplexityResults: {
-          ...state.perplexityResults,
-          [action.payload.claimId]: action.payload.result,
-        },
-      };
-    
-    case 'SET_CLAIM_VERIFYING':
-      return {
-        ...state,
-        claims: state.claims.map(claim =>
-          claim.id === action.payload.claimId
-            ? {
-                ...claim,
-                verificationState: action.payload.isVerifying
-                  ? 'verifying-perplexity'
-                  : 'idle',
-              }
-            : claim
-        ),
-      };
-    
-    case 'RESET':
-      return initialState;
-    
-    default:
-      return state;
-  }
-}
-
-interface AppProviderProps {
-  children: ReactNode;
-}
-
-export function AppProvider({ children }: AppProviderProps) {
-  const [state, dispatch] = useReducer(appReducer, initialState);
-
-  return (
-    <AppContext.Provider value={{ state, dispatch }}>
-      {children}
-    </AppContext.Provider>
-  );
-}
-
-export function useApp() {
-  const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
-}
-</file>
-
 <file path="client/src/hooks/useClaimExtraction.ts">
 import { useState, useCallback } from 'react';
 import axios from 'axios';
@@ -1643,6 +853,113 @@ export function useClaimExtraction() {
     fetchSampleMemo,
     updateClaimStatus,
     isExtracting,
+  };
+}
+</file>
+
+<file path="client/src/hooks/usePerplexityVerification.ts">
+import { useCallback } from 'react';
+import { useApp } from '../contexts/AppContext';
+import { PerplexityResult } from '../types';
+
+export function usePerplexityVerification() {
+  const { state, dispatch } = useApp();
+
+  const verifyClaimWithPerplexity = useCallback(
+    async (claimId: string) => {
+      console.log('Starting verification for claim:', claimId);
+      
+      const claim = state.claims.find(c => c.id === claimId);
+      if (!claim) {
+        console.error('Claim not found:', claimId);
+        return;
+      }
+      console.log('Found claim:', claim);
+
+      // Set verifying state
+      console.log('Dispatching SET_CLAIM_VERIFYING...');
+      dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: true } });
+
+      try {
+        console.log('Making API request with data:', {
+          claimText: claim.text,
+          memoText: state.memoText.substring(0, 100) + '...',
+          companyType: state.companyType,
+          claimId: claim.id,
+        });
+        
+        const response = await fetch('/api/claims/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            claimText: claim.text,
+            memoText: state.memoText,
+            companyType: state.companyType,
+            claimId: claim.id,
+          }),
+        });
+        
+        console.log('API response status:', response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('API error response:', errorData);
+          throw new Error(errorData.error?.message || 'Verification failed');
+        }
+
+        const data = await response.json();
+        console.log('Verification API response:', data);
+        
+        // Update claim with verification result and mark as verified
+        dispatch({
+          type: 'SET_CLAIM_VERIFIED',
+          payload: {
+            claimId,
+            result: data.verificationResult,
+          },
+        });
+        console.log('Dispatched SET_CLAIM_VERIFIED for claim:', claimId);
+
+      } catch (error) {
+        console.error('Perplexity verification error:', error);
+        
+        // Update claim state to show error and set error message
+        const errorMessage = error instanceof Error ? error.message : 'Verification failed';
+        dispatch({
+          type: 'SET_CLAIM_VERIFICATION_ERROR',
+          payload: {
+            claimId,
+            error: errorMessage,
+          },
+        });
+      } finally {
+        // Clear verifying state
+        console.log('Clearing verifying state...');
+        dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: false } });
+      }
+    },
+    [state.claims, state.memoText, state.companyType, dispatch]
+  );
+
+  const getPerplexityResult = useCallback(
+    (claimId: string): PerplexityResult | undefined => {
+      return state.perplexityResults[claimId];
+    },
+    [state.perplexityResults]
+  );
+
+  const isVerifyingClaim = useCallback(
+    (claimId: string): boolean => {
+      const claim = state.claims.find(c => c.id === claimId);
+      return claim?.verificationState === 'verifying-perplexity' || false;
+    },
+    [state.claims]
+  );
+
+  return {
+    verifyClaimWithPerplexity,
+    getPerplexityResult,
+    isVerifyingClaim,
   };
 }
 </file>
@@ -2055,6 +1372,1225 @@ import '@testing-library/jest-dom';
   height: 64px;
   margin: 0 auto var(--spacing-lg);
   color: var(--color-gray-400);
+}
+</file>
+
+<file path="client/src/styles/typography.css">
+/* Typography System - The Economist Style */
+
+/* Headlines - Serif */
+.headline-1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 32px;
+  font-weight: bold;
+  line-height: 1.2;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.headline-2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 1.3;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.headline-3 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+/* Body Text - Sans-serif */
+.body-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-secondary);
+}
+
+.body-small {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-gray-600);
+}
+
+.body-large {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--color-secondary);
+}
+
+/* Special Text Styles */
+.caption {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-gray-600);
+  font-style: italic;
+}
+
+.label {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-gray-700);
+}
+
+.subtitle {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--color-gray-600);
+  font-weight: 400;
+}
+
+/* Links */
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-accent-light);
+  text-decoration: underline;
+}
+
+/* Emphasis */
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-secondary {
+  color: var(--color-secondary);
+}
+
+.text-accent {
+  color: var(--color-accent);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.text-warning {
+  color: var(--color-warning);
+}
+
+.text-error {
+  color: var(--color-error);
+}
+
+.text-muted {
+  color: var(--color-gray-600);
+}
+
+/* Font Weight Utilities */
+.font-light {
+  font-weight: 300;
+}
+
+.font-normal {
+  font-weight: 400;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+/* Text Alignment */
+.text-justify {
+  text-align: justify;
+}
+
+/* Line Height Utilities */
+.leading-tight {
+  line-height: 1.2;
+}
+
+.leading-normal {
+  line-height: 1.6;
+}
+
+.leading-relaxed {
+  line-height: 1.8;
+}
+
+/* Letter Spacing */
+.tracking-tight {
+  letter-spacing: -0.05em;
+}
+
+.tracking-normal {
+  letter-spacing: 0;
+}
+
+.tracking-wide {
+  letter-spacing: 0.05em;
+}
+
+/* Lists */
+ul, ol {
+  margin-left: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+li {
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Blockquote */
+blockquote {
+  border-left: 4px solid var(--color-primary);
+  padding-left: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+  font-style: italic;
+  color: var(--color-gray-700);
+}
+
+/* Code */
+code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  background-color: var(--color-gray-100);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+}
+
+pre {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  background-color: var(--color-gray-100);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  line-height: 1.5;
+  margin-bottom: var(--spacing-md);
+}
+</file>
+
+<file path="client/tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src"
+  ]
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "sense-checkr",
+  "version": "1.0.0",
+  "description": "Professional investment memo fact-checking tool",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm start",
+    "client": "cd client && npm start",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+</file>
+
+<file path="server/middleware/errorHandler.js">
+const errorHandler = (err, req, res, next) => {
+  // Log error for debugging
+  console.error(`Error: ${err.message}`);
+  console.error(err.stack);
+
+  // Default error status and message
+  let status = err.status || 500;
+  let message = err.message || 'Internal Server Error';
+
+  // Handle specific error types
+  if (err.name === 'ValidationError') {
+    status = 400;
+    message = 'Invalid request data';
+  } else if (err.name === 'UnauthorizedError') {
+    status = 401;
+    message = 'Unauthorized access';
+  } else if (err.name === 'RateLimitError') {
+    status = 429;
+    message = 'Too many requests';
+  } else if (err.isAxiosError) {
+    // Handle OpenRouter API errors
+    if (err.response) {
+      status = err.response.status;
+      message = err.response.data?.error?.message || 'External API error';
+    } else if (err.request) {
+      status = 503;
+      message = 'External service unavailable';
+    }
+  }
+
+  // Send error response
+  res.status(status).json({
+    error: {
+      message,
+      status,
+      timestamp: new Date().toISOString(),
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    }
+  });
+};
+
+module.exports = errorHandler;
+</file>
+
+<file path="server/package.json">
+{
+  "name": "sense-checkr-server",
+  "version": "1.0.0",
+  "description": "Backend server for Sense Checkr investment memo fact-checking",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.5",
+    "dotenv": "^16.3.1",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+</file>
+
+<file path="server/railway.json">
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "npm start",
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
+</file>
+
+<file path="server/render.yaml">
+services:
+  - type: web
+    name: sense-checkr-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://sense-checkr-kbftvijck-god-squad-589edc03.vercel.app
+      - key: OPENROUTER_API_KEY
+        sync: false
+</file>
+
+<file path="vercel.json">
+{
+  "buildCommand": "npm run install-all && npm run build",
+  "outputDirectory": "client/build",
+  "framework": "create-react-app",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+</file>
+
+<file path=".gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.vercel
+</file>
+
+<file path="client/src/components/claims/ClaimCard.tsx">
+import React, { useState } from 'react';
+import { Check, X, AlertCircle, HelpCircle, Globe, FileText, User, Loader, ExternalLink } from 'lucide-react';
+import { Claim } from '../../types';
+import { useClaimExtraction } from '../../hooks/useClaimExtraction';
+import { usePerplexityVerification } from '../../hooks/usePerplexityVerification';
+
+interface ClaimCardProps {
+  claim: Claim;
+  onHover?: (claimId: string | null) => void;
+}
+
+export function ClaimCard({ claim, onHover }: ClaimCardProps) {
+  const { updateClaimStatus } = useClaimExtraction();
+  const { verifyClaimWithPerplexity, getPerplexityResult, isVerifyingClaim } = usePerplexityVerification();
+  const [showManualVerify, setShowManualVerify] = useState(false);
+
+  const perplexityResult = getPerplexityResult(claim.id);
+  const isVerifying = isVerifyingClaim(claim.id);
+  const hasPerplexityResult = !!(perplexityResult && claim.verificationState === 'verified-perplexity');
+
+  // Debug logging
+  console.log('ClaimCard Debug:', {
+    claimId: claim.id,
+    verificationState: claim.verificationState,
+    perplexityResult: perplexityResult,
+    hasPerplexityResult: hasPerplexityResult,
+    isVerifying: isVerifying
+  });
+
+  const handleStatusChange = (status: Claim['status']) => {
+    updateClaimStatus(claim.id, status);
+  };
+
+  const handlePerplexityVerify = () => {
+    console.log('Verify with Perplexity clicked for claim:', claim.id);
+    verifyClaimWithPerplexity(claim.id);
+  };
+
+  const getStatusIcon = () => {
+    // If we have Perplexity results, show appropriate icon
+    if (hasPerplexityResult) {
+      switch (perplexityResult.status) {
+        case 'verified_true':
+          return <Check size={16} />;
+        case 'verified_false':
+          return <X size={16} />;
+        case 'partially_true':
+        case 'needs_context':
+          return <AlertCircle size={16} />;
+        case 'cannot_find_answer':
+          return <HelpCircle size={16} />;
+        default:
+          return <Globe size={16} />;
+      }
+    }
+
+    // Otherwise show manual verification status
+    switch (claim.status) {
+      case 'true':
+        return <Check size={16} />;
+      case 'false':
+        return <X size={16} />;
+      case 'assumption':
+        return <AlertCircle size={16} />;
+      default:
+        return <HelpCircle size={16} />;
+    }
+  };
+
+  const getDisplayStatus = () => {
+    // Prioritize Perplexity status if available
+    if (hasPerplexityResult) {
+      return getPerplexityStatusText(perplexityResult.status);
+    }
+    
+    // Otherwise show manual status
+    return claim.status === 'unverified' ? 'Unverified' : claim.status;
+  };
+
+  const getStatusClass = () => {
+    // Use Perplexity status class if available
+    if (hasPerplexityResult) {
+      return `status-${getPerplexityStatusClass(perplexityResult.status)}`;
+    }
+    
+    // Otherwise use manual status class
+    return `status-${claim.status}`;
+  };
+
+  const getConfidencePercentage = () => {
+    // Use Perplexity confidence if available
+    if (hasPerplexityResult && perplexityResult.confidence) {
+      return (perplexityResult.confidence / 10) * 100;
+    }
+    return (claim.confidence / 10) * 100;
+  };
+
+  const getConfidenceValue = () => {
+    if (hasPerplexityResult && perplexityResult.confidence) {
+      return perplexityResult.confidence;
+    }
+    return claim.confidence;
+  };
+
+  const getPerplexityStatusText = (status: string) => {
+    switch (status) {
+      case 'verified_true':
+        return 'Verified True';
+      case 'verified_false':
+        return 'Verified False';
+      case 'partially_true':
+        return 'Partially True';
+      case 'needs_context':
+        return 'Needs Context';
+      case 'cannot_find_answer':
+        return 'Cannot Find Answer';
+      default:
+        return status;
+    }
+  };
+
+  const getPerplexityStatusClass = (status: string) => {
+    switch (status) {
+      case 'verified_true':
+        return 'perplexity-true';
+      case 'verified_false':
+        return 'perplexity-false';
+      case 'partially_true':
+        return 'perplexity-partial';
+      case 'needs_context':
+        return 'perplexity-context';
+      case 'cannot_find_answer':
+        return 'perplexity-unknown';
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <div
+      className={`claim-card ${getStatusClass()} fade-in`}
+      onMouseEnter={() => onHover?.(claim.id)}
+      onMouseLeave={() => onHover?.(null)}
+    >
+      <div className="claim-header">
+        <div className="claim-badges">
+          <span className={`category-badge ${claim.category}`}>
+            {claim.category}
+          </span>
+          <span className={`status-badge ${getStatusClass()}`}>
+            {getStatusIcon()}
+            {getDisplayStatus()}
+          </span>
+          {hasPerplexityResult && (
+            <span className="verification-type-badge">
+              <Globe size={12} />
+              AI Verified
+            </span>
+          )}
+        </div>
+        <div className="claim-confidence">
+          <span className="label">Confidence</span>
+          <div className="confidence-bar">
+            <div
+              className="confidence-fill"
+              style={{ width: `${getConfidencePercentage()}%` }}
+            />
+          </div>
+          <span className="confidence-value">{getConfidenceValue()}/10</span>
+        </div>
+      </div>
+
+      <div className="claim-content">
+        <p className="claim-text">{claim.text}</p>
+      </div>
+
+      {hasPerplexityResult && (
+        <div className={`perplexity-note ${getPerplexityStatusClass(perplexityResult.status)}`}>
+          <p className="perplexity-reasoning">{perplexityResult.reasoning}</p>
+          {perplexityResult.sources.length > 0 && (
+            <div className="perplexity-sources-compact">
+              <span className="sources-label">Sources:</span>
+              {perplexityResult.sources.slice(0, 2).map((source, index) => {
+                try {
+                  const hostname = new URL(source).hostname.replace('www.', '');
+                  return (
+                    <a
+                      key={index}
+                      href={source}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="source-link-compact"
+                      title={source}
+                    >
+                      {hostname}
+                    </a>
+                  );
+                } catch {
+                  return null;
+                }
+              })}
+              {perplexityResult.sources.length > 2 && (
+                <span className="more-sources">+{perplexityResult.sources.length - 2} more</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {claim.verificationState === 'verification-error' && (
+        <div className="verification-error-message">
+          <AlertCircle size={16} />
+          <span>Verification failed. Please try again.</span>
+        </div>
+      )}
+
+      <div className="claim-actions">
+        <p className="label">Verify this claim:</p>
+        <div className="verification-options">
+          <button
+            onClick={handlePerplexityVerify}
+            className={`btn btn-sm btn-icon ${isVerifying ? 'btn-loading' : ''}`}
+            disabled={isVerifying || claim.verificationState === 'verified-perplexity'}
+            aria-label="Verify with Perplexity"
+          >
+            {isVerifying ? <Loader className="spinner" size={16} /> : <Globe size={16} />}
+            Verify with Perplexity
+          </button>
+          <button
+            className="btn btn-sm btn-icon btn-disabled"
+            disabled={true}
+            aria-label="Verify with Docs (Coming Soon)"
+          >
+            <FileText size={16} />
+            Verify with Docs
+          </button>
+          <button
+            onClick={() => setShowManualVerify(!showManualVerify)}
+            className={`btn btn-sm btn-icon ${showManualVerify ? 'btn-active' : ''}`}
+            aria-label="Verify by Human"
+          >
+            <User size={16} />
+            Verify by Human
+          </button>
+        </div>
+        
+        {showManualVerify && (
+          <div className="status-buttons">
+            <button
+              onClick={() => handleStatusChange('true')}
+              className={`btn btn-sm ${claim.status === 'true' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as true"
+            >
+              <Check size={16} />
+              True
+            </button>
+            <button
+              onClick={() => handleStatusChange('false')}
+              className={`btn btn-sm ${claim.status === 'false' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as false"
+            >
+              <X size={16} />
+              False
+            </button>
+            <button
+              onClick={() => handleStatusChange('assumption')}
+              className={`btn btn-sm ${claim.status === 'assumption' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as assumption"
+            >
+              <AlertCircle size={16} />
+              Assumption
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/components/claims/ProgressIndicator.tsx">
+import React from 'react';
+import { Check, X, AlertCircle, HelpCircle, Globe } from 'lucide-react';
+import { Claim } from '../../types';
+
+interface ProgressIndicatorProps {
+  claims: Claim[];
+  processingTime?: number | null;
+}
+
+export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorProps) {
+  // Count claims by status and by AI verification
+  const statusCounts = claims.reduce(
+    (acc, claim) => {
+      acc[claim.status]++;
+      acc.total++;
+      if (claim.verificationState === 'verified-perplexity') {
+        acc.aiVerified++;
+      }
+      return acc;
+    },
+    { unverified: 0, true: 0, false: 0, assumption: 0, aiVerified: 0, total: 0 }
+  );
+
+  // A claim is "verified" if it is true/false/assumption OR AI-verified
+  const verifiedCount = statusCounts.true + statusCounts.false + statusCounts.assumption + statusCounts.aiVerified;
+  const progressPercentage = claims.length > 0 ? (verifiedCount / claims.length) * 100 : 0;
+
+  return (
+    <div className="progress-indicator">
+      <div className="progress-header">
+        <h3 className="headline-3">Verification Progress</h3>
+        {processingTime && (
+          <p className="processing-time">
+            Extracted in {(processingTime / 1000).toFixed(1)}s
+          </p>
+        )}
+      </div>
+
+      <div className="progress-bar-container">
+        <div className="progress-bar">
+          <div
+            className="progress-fill"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+        <p className="progress-text">
+          {verifiedCount} of {claims.length} claims verified ({Math.round(progressPercentage)}%)
+        </p>
+      </div>
+
+      <div className="status-summary">
+        <div className="status-item">
+          <div className="status-icon true">
+            <Check size={16} />
+          </div>
+          <span className="status-label">True</span>
+          <span className="status-count">{statusCounts.true}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon false">
+            <X size={16} />
+          </div>
+          <span className="status-label">False</span>
+          <span className="status-count">{statusCounts.false}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon assumption">
+            <AlertCircle size={16} />
+          </div>
+          <span className="status-label">Assumptions</span>
+          <span className="status-count">{statusCounts.assumption}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon unverified">
+            <HelpCircle size={16} />
+          </div>
+          <span className="status-label">Unverified</span>
+          <span className="status-count">{statusCounts.unverified}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon ai-verified">
+            <Globe size={16} />
+          </div>
+          <span className="status-label">AI Verified</span>
+          <span className="status-count">{statusCounts.aiVerified}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/components/memo/MemoHighlighter.tsx">
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useApp } from '../../contexts/AppContext';
+import { ClaimsList } from '../claims/ClaimsList';
+import { ProgressIndicator } from '../claims/ProgressIndicator';
+import { Claim } from '../../types';
+
+export function MemoHighlighter() {
+  const { state, dispatch } = useApp();
+  const { memoText, claims, processingTime } = state;
+  const [hoveredClaimId, setHoveredClaimId] = useState<string | null>(null);
+  const [isMemoCollapsed, setIsMemoCollapsed] = useState(true);
+  const memoRef = useRef<HTMLDivElement>(null);
+
+  const highlightedMemo = useMemo(() => {
+    if (!memoText || claims.length === 0) return memoText;
+
+    const sortedClaims = [...claims].sort((a, b) => a.range[0] - b.range[0]);
+    let result = [];
+    let lastIndex = 0;
+
+    sortedClaims.forEach((claim) => {
+      const [start, end] = claim.range;
+      
+      // Add text before the claim
+      if (start > lastIndex) {
+        result.push(
+          <span key={`text-${lastIndex}`}>
+            {memoText.slice(lastIndex, start)}
+          </span>
+        );
+      }
+
+      // Add the highlighted claim
+      const isHovered = hoveredClaimId === claim.id;
+      result.push(
+        <span
+          key={`claim-${claim.id}`}
+          className={`highlighted-claim status-${claim.status} ${isHovered ? 'hovered' : ''}`}
+          data-claim-id={claim.id}
+          onMouseEnter={() => setHoveredClaimId(claim.id)}
+          onMouseLeave={() => setHoveredClaimId(null)}
+        >
+          {memoText.slice(start, end)}
+        </span>
+      );
+
+      lastIndex = end;
+    });
+
+    // Add remaining text
+    if (lastIndex < memoText.length) {
+      result.push(
+        <span key={`text-${lastIndex}`}>
+          {memoText.slice(lastIndex)}
+        </span>
+      );
+    }
+
+    return result;
+  }, [memoText, claims, hoveredClaimId]);
+
+  // Scroll to highlighted claim when hovering
+  useEffect(() => {
+    if (hoveredClaimId && memoRef.current) {
+      const element = memoRef.current.querySelector(`[data-claim-id="${hoveredClaimId}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [hoveredClaimId]);
+
+  const handleBackToInput = () => {
+    dispatch({ type: 'RESET' });
+  };
+
+  const toggleMemoCollapse = () => {
+    setIsMemoCollapsed(!isMemoCollapsed);
+  };
+
+  return (
+    <div className="memo-highlighter">
+      <div className="highlighter-header">
+        <button onClick={handleBackToInput} className="btn btn-ghost btn-icon">
+          <ArrowLeft size={20} />
+          Back to Input
+        </button>
+        <h2 className="headline-2">Verify Investment Memo Claims</h2>
+      </div>
+
+      <div className={`highlighter-content ${isMemoCollapsed ? 'memo-collapsed' : ''}`}>
+        <div className={`memo-panel ${isMemoCollapsed ? 'collapsed' : ''}`}>
+          <div className="panel-header">
+            <div className="panel-header-content">
+              <h3 className="headline-3">Original Memo</h3>
+              <button
+                onClick={toggleMemoCollapse}
+                className="btn btn-ghost btn-icon collapse-toggle"
+                aria-label={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
+                title={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
+              >
+                {isMemoCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+              </button>
+            </div>
+            {!isMemoCollapsed && (
+              <p className="body-small">Hover over claims to highlight them in the text</p>
+            )}
+          </div>
+          {!isMemoCollapsed && (
+            <div ref={memoRef} className="memo-text-container">
+              <p className="memo-text">{highlightedMemo}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="claims-panel">
+          <div className="sticky-progress-wrapper">
+            <ProgressIndicator claims={claims} processingTime={processingTime} />
+          </div>
+          <div className="claims-list-wrapper">
+            <ClaimsList claims={claims} onClaimHover={setHoveredClaimId} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/components/memo/MemoInput.tsx">
+import React, { useState, useCallback, ChangeEvent } from 'react';
+import { FileText, Send, Building2, Briefcase } from 'lucide-react';
+import { useApp } from '../../contexts/AppContext';
+import { useClaimExtraction } from '../../hooks/useClaimExtraction';
+
+export function MemoInput() {
+  const { state, dispatch } = useApp();
+  const { memoText, error, companyType } = state;
+  const { extractClaims, fetchSampleMemo, isExtracting } = useClaimExtraction();
+  const [isLoadingSample, setIsLoadingSample] = useState(false);
+
+  const handleTextChange = useCallback(
+    (e: ChangeEvent<HTMLTextAreaElement>) => {
+      dispatch({ type: 'SET_MEMO_TEXT', payload: e.target.value });
+      if (error) {
+        dispatch({ type: 'SET_ERROR', payload: null });
+      }
+    },
+    [dispatch, error]
+  );
+
+  const handleCompanyTypeChange = useCallback(
+    (type: 'external' | 'internal') => {
+      dispatch({ type: 'SET_COMPANY_TYPE', payload: type });
+    },
+    [dispatch]
+  );
+
+  const handleUseSample = useCallback(async () => {
+    setIsLoadingSample(true);
+    try {
+      const sampleMemo = await fetchSampleMemo();
+      dispatch({ type: 'SET_MEMO_TEXT', payload: sampleMemo });
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to load sample memo' });
+    } finally {
+      setIsLoadingSample(false);
+    }
+  }, [fetchSampleMemo, dispatch]);
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (memoText.trim().length < 50) {
+        dispatch({ type: 'SET_ERROR', payload: 'Please enter at least 50 characters' });
+        return;
+      }
+      await extractClaims(memoText);
+    },
+    [memoText, extractClaims, dispatch]
+  );
+
+  const characterCount = memoText.length;
+  const isValid = characterCount >= 50 && characterCount <= 20000;
+
+  return (
+    <div className="memo-input-container">
+      <div className="memo-input-header">
+        <h2 className="headline-2">Investment Memo Input</h2>
+        <p className="subtitle">
+          Paste your investment memo below and we'll extract all factual claims for verification
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="memo-form">
+        <div className="form-group">
+          <label className="form-label">Company Type</label>
+          <div className="company-type-toggle">
+            <label className={`radio-option ${companyType === 'external' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="companyType"
+                value="external"
+                checked={companyType === 'external'}
+                onChange={() => handleCompanyTypeChange('external')}
+                disabled={isExtracting}
+              />
+              <Building2 size={20} />
+              <div>
+                <span className="radio-label">External Company</span>
+                <span className="radio-help">Real companies that exist publicly</span>
+              </div>
+            </label>
+            <label className={`radio-option ${companyType === 'internal' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="companyType"
+                value="internal"
+                checked={companyType === 'internal'}
+                onChange={() => handleCompanyTypeChange('internal')}
+                disabled={isExtracting}
+              />
+              <Briefcase size={20} />
+              <div>
+                <span className="radio-label">Internal Venture</span>
+                <span className="radio-help">Internal corporate projects</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="memo-text" className="form-label">
+            Memo Text
+          </label>
+          <textarea
+            id="memo-text"
+            value={memoText}
+            onChange={handleTextChange}
+            className="form-textarea memo-textarea"
+            placeholder="Paste your investment memo here..."
+            disabled={isExtracting}
+            aria-describedby="character-count"
+          />
+          <div className="form-footer">
+            <button
+              type="button"
+              onClick={handleUseSample}
+              className="btn btn-secondary btn-sm"
+              disabled={isExtracting || isLoadingSample}
+            >
+              <FileText size={16} />
+              Use Sample Memo
+            </button>
+            <div id="character-count" className="character-count">
+              {characterCount} / 20,000 characters
+              {characterCount < 50 && characterCount > 0 && (
+                <span className="text-error"> (minimum 50)</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="error-message" role="alert">
+            {error}
+          </div>
+        )}
+
+        <div className="form-actions">
+          <button
+            type="submit"
+            className="btn btn-primary btn-lg btn-icon"
+            disabled={!isValid || isExtracting}
+          >
+            <Send size={20} />
+            {isExtracting ? 'Extracting Claims...' : 'Extract Claims'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/contexts/AppContext.tsx">
+import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import { AppState, AppAction } from '../types';
+
+interface AppContextType {
+  state: AppState;
+  dispatch: React.Dispatch<AppAction>;
+}
+
+const initialState: AppState = {
+  currentStep: 'input',
+  memoText: '',
+  claims: [],
+  isLoading: false,
+  error: null,
+  processingTime: null,
+  companyType: 'external',
+  perplexityResults: {},
+};
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case 'SET_STEP':
+      return { ...state, currentStep: action.payload };
+    
+    case 'SET_MEMO_TEXT':
+      return { ...state, memoText: action.payload };
+    
+    case 'SET_CLAIMS':
+      return { 
+        ...state, 
+        claims: action.payload.map(claim => ({
+          ...claim,
+          verificationState: claim.verificationState || 'idle'
+        }))
+      };
+    
+    case 'UPDATE_CLAIM_STATUS':
+      return {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.id
+            ? { ...claim, status: action.payload.status }
+            : claim
+        ),
+      };
+    
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
+    
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
+    
+    case 'SET_PROCESSING_TIME':
+      return { ...state, processingTime: action.payload };
+    
+    case 'SET_COMPANY_TYPE':
+      return { ...state, companyType: action.payload };
+    
+    case 'SET_PERPLEXITY_RESULT':
+      return {
+        ...state,
+        perplexityResults: {
+          ...state.perplexityResults,
+          [action.payload.claimId]: action.payload.result,
+        },
+      };
+    
+    case 'SET_CLAIM_VERIFYING':
+      console.log('SET_CLAIM_VERIFYING action:', action.payload);
+      const verifyingState = {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.claimId
+            ? {
+                ...claim,
+                verificationState: action.payload.isVerifying
+                  ? ('verifying-perplexity' as const)
+                  : (claim.verificationState === 'verifying-perplexity' ? ('idle' as const) : claim.verificationState),
+              }
+            : claim
+        ),
+      };
+      console.log('After SET_CLAIM_VERIFYING, claim state:', verifyingState.claims.find(c => c.id === action.payload.claimId));
+      return verifyingState;
+    
+    case 'SET_CLAIM_VERIFIED':
+      console.log('SET_CLAIM_VERIFIED action:', action.payload);
+      console.log('Current claims before update:', state.claims);
+      const updatedState = {
+        ...state,
+        claims: state.claims.map(claim => {
+          if (claim.id === action.payload.claimId) {
+            const updatedClaim = { ...claim, verificationState: 'verified-perplexity' as const };
+            console.log('Updating claim from:', claim);
+            console.log('Updating claim to:', updatedClaim);
+            return updatedClaim;
+          }
+          return claim;
+        }),
+        perplexityResults: {
+          ...state.perplexityResults,
+          [action.payload.claimId]: action.payload.result,
+        },
+      };
+      console.log('Updated state claims:', updatedState.claims);
+      console.log('Updated claim:', updatedState.claims.find(c => c.id === action.payload.claimId));
+      return updatedState;
+    
+    case 'SET_CLAIM_VERIFICATION_ERROR':
+      return {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.claimId
+            ? { ...claim, verificationState: 'verification-error' }
+            : claim
+        ),
+        error: action.payload.error,
+      };
+    
+    case 'RESET':
+      return initialState;
+    
+    default:
+      return state;
+  }
+}
+
+interface AppProviderProps {
+  children: ReactNode;
+}
+
+export function AppProvider({ children }: AppProviderProps) {
+  const [state, dispatch] = useReducer(appReducer, initialState);
+
+  return (
+    <AppContext.Provider value={{ state, dispatch }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+export function useApp() {
+  const context = useContext(AppContext);
+  if (context === undefined) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
 }
 </file>
 
@@ -2586,6 +3122,144 @@ body {
 .perplexity-results.perplexity-unknown {
   background-color: var(--color-gray-50);
   border-color: var(--color-gray-400);
+}
+
+/* Perplexity Note - Compact Version */
+.perplexity-note {
+  background-color: var(--color-gray-50);
+  border-left: 3px solid var(--color-gray-400);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin: var(--spacing-md) 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.perplexity-note.perplexity-true {
+  background-color: rgba(34, 139, 34, 0.05);
+  border-left-color: var(--color-success);
+}
+
+.perplexity-note.perplexity-false {
+  background-color: rgba(220, 20, 60, 0.05);
+  border-left-color: var(--color-error);
+}
+
+.perplexity-note.perplexity-partial {
+  background-color: rgba(255, 176, 0, 0.05);
+  border-left-color: var(--color-warning);
+}
+
+.perplexity-note.perplexity-context {
+  background-color: rgba(27, 54, 93, 0.05);
+  border-left-color: var(--color-accent);
+}
+
+.perplexity-note.perplexity-unknown {
+  background-color: var(--color-gray-50);
+  border-left-color: var(--color-gray-400);
+}
+
+.perplexity-note .perplexity-reasoning {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-secondary);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+/* Status Badge Updates for Perplexity */
+.status-badge.status-perplexity-true {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.status-badge.status-perplexity-false {
+  background-color: var(--color-error);
+  color: white;
+}
+
+.status-badge.status-perplexity-partial {
+  background-color: var(--color-warning);
+  color: white;
+}
+
+.status-badge.status-perplexity-context {
+  background-color: var(--color-accent);
+  color: white;
+}
+
+.status-badge.status-perplexity-unknown {
+  background-color: var(--color-gray-500);
+  color: white;
+}
+
+/* Verification Type Badge */
+.verification-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 4px 8px;
+  background-color: var(--color-accent-light);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.verification-type-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Compact Sources */
+.perplexity-sources-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 12px;
+}
+
+.perplexity-sources-compact .sources-label {
+  color: var(--color-gray-600);
+  font-weight: 500;
+}
+
+.source-link-compact {
+  color: var(--color-primary);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--color-primary);
+  padding: 0 2px;
+}
+
+.source-link-compact:hover {
+  border-bottom-style: solid;
+}
+
+.more-sources {
+  color: var(--color-gray-500);
+  font-style: italic;
+}
+
+/* Claim Card Status Classes for Perplexity */
+.claim-card.status-perplexity-true {
+  border-left: 3px solid var(--color-success);
+}
+
+.claim-card.status-perplexity-false {
+  border-left: 3px solid var(--color-error);
+}
+
+.claim-card.status-perplexity-partial {
+  border-left: 3px solid var(--color-warning);
+}
+
+.claim-card.status-perplexity-context {
+  border-left: 3px solid var(--color-accent);
+}
+
+.claim-card.status-perplexity-unknown {
+  border-left: 3px solid var(--color-gray-400);
 }
 
 .perplexity-header {
@@ -3134,6 +3808,16 @@ body {
   .company-type-toggle {
     flex-direction: column;
   }
+  
+  .perplexity-note {
+    margin: var(--spacing-sm) -var(--spacing-sm);
+    border-radius: 0;
+  }
+  
+  .verification-type-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
 
   .claims-list {
     padding: var(--spacing-md) 0;
@@ -3172,219 +3856,6 @@ body {
     padding: var(--spacing-md);
     padding-top: var(--spacing-lg);
   }
-}
-</file>
-
-<file path="client/src/styles/typography.css">
-/* Typography System - The Economist Style */
-
-/* Headlines - Serif */
-.headline-1 {
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 32px;
-  font-weight: bold;
-  line-height: 1.2;
-  color: var(--color-secondary);
-  margin-bottom: var(--spacing-lg);
-}
-
-.headline-2 {
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 24px;
-  font-weight: bold;
-  line-height: 1.3;
-  color: var(--color-secondary);
-  margin-bottom: var(--spacing-md);
-}
-
-.headline-3 {
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--color-secondary);
-  margin-bottom: var(--spacing-md);
-}
-
-/* Body Text - Sans-serif */
-.body-text {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
-  color: var(--color-secondary);
-}
-
-.body-small {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--color-gray-600);
-}
-
-.body-large {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 18px;
-  line-height: 1.7;
-  color: var(--color-secondary);
-}
-
-/* Special Text Styles */
-.caption {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--color-gray-600);
-  font-style: italic;
-}
-
-.label {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-gray-700);
-}
-
-.subtitle {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 18px;
-  line-height: 1.5;
-  color: var(--color-gray-600);
-  font-weight: 400;
-}
-
-/* Links */
-a {
-  color: var(--color-accent);
-  text-decoration: none;
-  transition: color var(--transition-fast);
-}
-
-a:hover {
-  color: var(--color-accent-light);
-  text-decoration: underline;
-}
-
-/* Emphasis */
-.text-primary {
-  color: var(--color-primary);
-}
-
-.text-secondary {
-  color: var(--color-secondary);
-}
-
-.text-accent {
-  color: var(--color-accent);
-}
-
-.text-success {
-  color: var(--color-success);
-}
-
-.text-warning {
-  color: var(--color-warning);
-}
-
-.text-error {
-  color: var(--color-error);
-}
-
-.text-muted {
-  color: var(--color-gray-600);
-}
-
-/* Font Weight Utilities */
-.font-light {
-  font-weight: 300;
-}
-
-.font-normal {
-  font-weight: 400;
-}
-
-.font-medium {
-  font-weight: 500;
-}
-
-.font-semibold {
-  font-weight: 600;
-}
-
-.font-bold {
-  font-weight: 700;
-}
-
-/* Text Alignment */
-.text-justify {
-  text-align: justify;
-}
-
-/* Line Height Utilities */
-.leading-tight {
-  line-height: 1.2;
-}
-
-.leading-normal {
-  line-height: 1.6;
-}
-
-.leading-relaxed {
-  line-height: 1.8;
-}
-
-/* Letter Spacing */
-.tracking-tight {
-  letter-spacing: -0.05em;
-}
-
-.tracking-normal {
-  letter-spacing: 0;
-}
-
-.tracking-wide {
-  letter-spacing: 0.05em;
-}
-
-/* Lists */
-ul, ol {
-  margin-left: var(--spacing-lg);
-  margin-bottom: var(--spacing-md);
-}
-
-li {
-  margin-bottom: var(--spacing-xs);
-}
-
-/* Blockquote */
-blockquote {
-  border-left: 4px solid var(--color-primary);
-  padding-left: var(--spacing-lg);
-  margin: var(--spacing-lg) 0;
-  font-style: italic;
-  color: var(--color-gray-700);
-}
-
-/* Code */
-code {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  background-color: var(--color-gray-100);
-  padding: 2px 4px;
-  border-radius: var(--radius-sm);
-  color: var(--color-accent);
-}
-
-pre {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  background-color: var(--color-gray-100);
-  padding: var(--spacing-md);
-  border-radius: var(--radius-md);
-  overflow-x: auto;
-  line-height: 1.5;
-  margin-bottom: var(--spacing-md);
 }
 </file>
 
@@ -3430,6 +3901,8 @@ export type AppAction =
   | { type: 'SET_COMPANY_TYPE'; payload: 'external' | 'internal' }
   | { type: 'SET_PERPLEXITY_RESULT'; payload: { claimId: string; result: PerplexityResult } }
   | { type: 'SET_CLAIM_VERIFYING'; payload: { claimId: string; isVerifying: boolean } }
+  | { type: 'SET_CLAIM_VERIFIED'; payload: { claimId: string; result: PerplexityResult } }
+  | { type: 'SET_CLAIM_VERIFICATION_ERROR'; payload: { claimId: string; error: string } }
   | { type: 'RESET' };
 
 export interface ClaimExtractionResponse {
@@ -3445,154 +3918,140 @@ export interface SampleMemoResponse {
 }
 </file>
 
-<file path="client/tsconfig.json">
-{
-  "compilerOptions": {
-    "target": "es5",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx"
-  },
-  "include": [
-    "src"
-  ]
-}
-</file>
+<file path="README.md">
+# Sense Checkr - Professional Investment Memo Fact-Checking Tool
 
-<file path="package.json">
-{
-  "name": "sense-checkr",
-  "version": "1.0.0",
-  "description": "Professional investment memo fact-checking tool",
-  "private": true,
-  "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd server && npm start",
-    "client": "cd client && npm start",
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
-    "build": "cd client && npm run build",
-    "start": "cd server && npm start"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  }
-}
-</file>
+A sophisticated B2B investment memo fact-checking application that helps financial analysts extract and verify factual claims from investment memos. Built with Node.js, React, and TypeScript, featuring an elegant design inspired by The Economist's clean, authoritative aesthetic.
 
-<file path="server/middleware/errorHandler.js">
-const errorHandler = (err, req, res, next) => {
-  // Log error for debugging
-  console.error(`Error: ${err.message}`);
-  console.error(err.stack);
+## Features
 
-  // Default error status and message
-  let status = err.status || 500;
-  let message = err.message || 'Internal Server Error';
+- **AI-Powered Claim Extraction**: Automatically extracts factual claims from investment memos using OpenRouter API with GPT-4o-mini
+- **Professional UI**: Clean, newspaper-like layout with The Economist-inspired design
+- **Split-Screen Verification**: View original memo alongside extracted claims with synchronized highlighting
+- **Claim Categorization**: Automatic categorization into financial, market, operational, and other claims
+- **Real-time Progress Tracking**: Visual indicators for verification progress and status summaries
+- **Sample Memo**: Built-in realistic investment memo for testing
 
-  // Handle specific error types
-  if (err.name === 'ValidationError') {
-    status = 400;
-    message = 'Invalid request data';
-  } else if (err.name === 'UnauthorizedError') {
-    status = 401;
-    message = 'Unauthorized access';
-  } else if (err.name === 'RateLimitError') {
-    status = 429;
-    message = 'Too many requests';
-  } else if (err.isAxiosError) {
-    // Handle OpenRouter API errors
-    if (err.response) {
-      status = err.response.status;
-      message = err.response.data?.error?.message || 'External API error';
-    } else if (err.request) {
-      status = 503;
-      message = 'External service unavailable';
-    }
-  }
+## Tech Stack
 
-  // Send error response
-  res.status(status).json({
-    error: {
-      message,
-      status,
-      timestamp: new Date().toISOString(),
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    }
-  });
-};
+- **Backend**: Node.js + Express
+- **Frontend**: React 18 + TypeScript (Create React App)
+- **Styling**: CSS Modules with custom design system
+- **State Management**: React Context + useReducer
+- **Icons**: Lucide React
+- **LLM Integration**: OpenRouter API with GPT-4o-mini
 
-module.exports = errorHandler;
-</file>
+## Prerequisites
 
-<file path="server/package.json">
-{
-  "name": "sense-checkr-server",
-  "version": "1.0.0",
-  "description": "Backend server for Sense Checkr investment memo fact-checking",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "axios": "^1.6.5",
-    "dotenv": "^16.3.1",
-    "express-rate-limit": "^7.1.5",
-    "helmet": "^7.1.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
-  }
-}
-</file>
+- Node.js (v14 or higher)
+- npm or yarn
+- OpenRouter API key
 
-<file path="server/railway.json">
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "NIXPACKS"
-  },
-  "deploy": {
-    "startCommand": "npm start",
-    "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 100,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
-</file>
+## Installation
 
-<file path="server/render.yaml">
-services:
-  - type: web
-    name: sense-checkr-backend
-    env: node
-    buildCommand: npm install
-    startCommand: npm start
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: FRONTEND_URL
-        value: https://sense-checkr-kbftvijck-god-squad-589edc03.vercel.app
-      - key: OPENROUTER_API_KEY
-        sync: false
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd sense-checkr
+```
+
+2. Install dependencies:
+```bash
+npm run install-all
+```
+
+3. Create a `.env.local` file in the root directory with your OpenRouter API key:
+```env
+OPENROUTER_API_KEY=your_api_key_here
+```
+
+## Running the Application
+
+Development mode (runs both server and client):
+```bash
+npm run dev
+```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000
+
+## API Endpoints
+
+- `POST /api/claims/extract` - Extract claims from memo text
+- `GET /api/claims/sample` - Get sample investment memo
+- `GET /api/health` - Health check endpoint
+
+## Project Structure
+
+```
+sense-checkr/
+├── server/
+│   ├── routes/api/         # API route handlers
+│   ├── middleware/         # Express middleware
+│   ├── utils/              # Utility functions (OpenRouter client)
+│   └── server.js           # Express server setup
+├── client/
+│   ├── public/             # Static files
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── contexts/       # React Context providers
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── styles/         # CSS files
+│   │   ├── types/          # TypeScript interfaces
+│   │   └── App.tsx         # Main App component
+└── package.json            # Root package.json
+
+```
+
+## Design System
+
+The application uses a custom design system inspired by The Economist:
+
+### Colors
+- Primary: Deep red (#E3120B)
+- Secondary: Charcoal (#2C2C2C)
+- Accent: Navy blue (#1B365D)
+- Success: Forest green (#228B22)
+- Warning: Amber (#FFB000)
+- Error: Crimson (#DC143C)
+
+### Typography
+- Headlines: Georgia serif font
+- Body text: System sans-serif fonts
+- Professional hierarchy with clear visual distinction
+
+## Features in Detail
+
+### Memo Input
+- Large, professional textarea with character count
+- Sample memo button for quick testing
+- Validation for minimum/maximum length
+- Clear error messaging
+
+### Claim Verification Interface
+- Split-screen layout: 60% memo, 40% claims
+- Color-coded highlighting based on verification status
+- Hover interactions for claim synchronization
+- Progress indicators with statistics
+
+### Claim Cards
+- Status indicators (unverified, true, false, assumption)
+- Category badges with distinct colors
+- Confidence scores with visual bars
+- One-click status updates
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License.
 </file>
 
 <file path="server/routes/api/claims.js">
@@ -3752,6 +4211,69 @@ Looking forward, management projects reaching $100M ARR by Q4 2025, supported by
 module.exports = router;
 </file>
 
+<file path="server/server.js">
+// Load environment variables - try multiple paths for different deployment scenarios
+require('dotenv').config({ path: '../.env.local' });
+require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const errorHandler = require('./middleware/errorHandler');
+const claimsRouter = require('./routes/api/claims');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Security middleware
+app.use(helmet());
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL 
+    : 'http://localhost:3000',
+  credentials: true
+}));
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+
+// Apply rate limiting to API routes
+app.use('/api/', apiLimiter);
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// API routes
+app.use('/api/claims', claimsRouter);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
+
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Sense Checkr server running on port ${PORT}`);
+});
+</file>
+
 <file path="server/utils/openrouter.js">
 const axios = require('axios');
 
@@ -3883,28 +4405,42 @@ Return a JSON array of claims. Be thorough but avoid duplicates.`;
   }
 
   async preprocessClaimForSearch(claimText, memoContext, companyType) {
-    const systemPrompt = `You are an expert at preparing factual claims for web search verification. Your task is to convert a claim from an investment memo into an effective search query and provide context for verification.
+    const systemPrompt = `You are writing a research prompt for Perplexity to fact-check an investment memo claim. Your job is to give Perplexity enough context to provide a useful verification.
 
-Given a claim and its context, you must:
-1. Extract the key factual elements that need verification
-2. Create a clear, specific search query that will find relevant information
-3. Identify what type of information would verify or refute this claim
-4. Consider whether this is about an external company (publicly available info) or internal venture (likely limited public info)
+**CLAIM TO VERIFY:**
+{claimText}
 
-Return a JSON object with:
-- searchQuery: The optimized search query string
-- keyElements: Array of key facts to verify
-- verificationType: What kind of verification is needed (financial data, market size, company metrics, etc.)
-- expectedSources: Types of sources that would be authoritative
-- contextNotes: Any important context for interpreting results`;
+**MEMO CONTEXT:**
+{memoText}
 
-    const userPrompt = `Prepare this claim for verification:
+**COMPANY TYPE:** {companyType}
+- external: Real company that exists publicly  
+- internal: Internal corporate venture/project
 
-Claim: "${claimText}"
+**YOUR TASK:**
+Write a single, well-contextualized prompt for Perplexity. Follow this pattern:
 
-Context from memo: "${memoContext.substring(0, 1000)}..."
+❌ BAD: "Is market size $13B?"
+✅ GOOD: "I am analyzing the pet food market in Alberta, and have a claim that this market is worth $13B. How accurate is this claim based on current market data?"
 
-Company Type: ${companyType === 'internal' ? 'Internal Venture (limited public information expected)' : 'External Company (public information available)'}`;
+❌ BAD: "Does TechFlow have $47M ARR?"  
+✅ GOOD: "I'm evaluating TechFlow Solutions, a workflow automation company, and they claim $47.2M in Annual Recurring Revenue as of Q3 2024. Can you verify this revenue figure and any recent financial performance data?"
+
+**IMPORTANT:**
+- Include company name, industry, and specific context
+- Mention if it's an internal venture vs external company
+- Be specific about timeframes, numbers, and what exactly needs verification
+- Ask for verification, not just information
+
+Write only the prompt for Perplexity, nothing else.`;
+
+    const userPrompt = `**CLAIM TO VERIFY:**
+${claimText}
+
+**MEMO CONTEXT:**
+${memoContext}
+
+**COMPANY TYPE:** ${companyType}`;
 
     try {
       const response = await this.makeRequest([
@@ -3912,407 +4448,168 @@ Company Type: ${companyType === 'internal' ? 'Internal Venture (limited public i
         { role: 'user', content: userPrompt }
       ], 0.3, this.groqModel);
 
-      const content = response.choices[0].message.content;
+      const perplexityPrompt = response.choices[0].message.content.trim();
       
-      try {
-        // Extract JSON from response
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          return JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error('No JSON object found in response');
-        }
-      } catch (parseError) {
-        console.error('Failed to parse preprocessing result:', parseError);
-        // Return a basic structure if parsing fails
-        return {
-          searchQuery: claimText,
-          keyElements: [claimText],
-          verificationType: 'general',
-          expectedSources: ['web'],
-          contextNotes: 'Direct claim search'
-        };
-      }
+      return {
+        perplexityPrompt,
+        originalClaim: claimText,
+        companyType
+      };
     } catch (error) {
       console.error('Error preprocessing claim:', error);
-      throw error;
+      // Fallback: create a basic prompt if preprocessing fails
+      return {
+        perplexityPrompt: `I need to verify this claim from an investment memo: "${claimText}". This is about ${companyType === 'internal' ? 'an internal corporate venture' : 'an external company'}. Can you help verify if this claim is accurate?`,
+        originalClaim: claimText,
+        companyType
+      };
     }
   }
 
   async verifyClaimWithPerplexity(preprocessedData) {
-    const systemPrompt = `You are a fact-checking assistant with access to real-time web information. Your task is to verify investment memo claims by searching for relevant information and determining their accuracy.
-
-Based on your search results, classify the claim as one of:
-- verified_true: The claim is accurate based on found evidence
-- verified_false: The claim is inaccurate based on found evidence
-- partially_true: Some aspects are true, others are false or unverifiable
-- needs_context: The claim might be true but requires additional context or qualifications
-- cannot_find_answer: Unable to find relevant information to verify the claim
-
-Provide:
-1. A clear status determination
-2. A brief reasoning explaining your conclusion
-3. List of source URLs that support your conclusion
-4. Your confidence level (1-10)
-5. The exact search query you used`;
-
-    const userPrompt = `Verify this claim using web search:
-
-Search Query: "${preprocessedData.searchQuery}"
-
-Key Elements to Verify: ${preprocessedData.keyElements.join(', ')}
-
-Verification Type: ${preprocessedData.verificationType}
-
-Expected Sources: ${preprocessedData.expectedSources.join(', ')}
-
-Context Notes: ${preprocessedData.contextNotes}
-
-Please search for current information and provide your verification assessment.`;
-
+    // Step 1: Send the prompt to Perplexity
+    const perplexityPrompt = preprocessedData.perplexityPrompt;
+    
     try {
+      console.log('Sending to Perplexity:', perplexityPrompt);
+      
+      // Simple user message to Perplexity
       const response = await this.makeRequest([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: perplexityPrompt }
       ], 0.3, this.perplexityModel);
 
-      const content = response.choices[0].message.content;
+      const perplexityResponse = response.choices[0].message.content;
       
-      // Parse the response - Perplexity might return structured or unstructured content
-      let result;
+      // Step 2: Process the response into structured format
+      const processedResult = await this.processPerplexityResponse(
+        perplexityResponse, 
+        preprocessedData.originalClaim
+      );
       
-      try {
-        // Try to extract JSON if present
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          result = JSON.parse(jsonMatch[0]);
-        } else {
-          // Parse unstructured response
-          result = this.parseUnstructuredVerification(content, preprocessedData.searchQuery);
-        }
-      } catch (parseError) {
-        console.error('Failed to parse verification result:', parseError);
-        result = {
-          status: 'cannot_find_answer',
-          reasoning: 'Failed to parse verification results',
-          sources: [],
-          confidence: 1,
-          searchQuery: preprocessedData.searchQuery
-        };
-      }
-
-      // Ensure all required fields are present
-      return {
-        status: result.status || 'cannot_find_answer',
-        reasoning: result.reasoning || 'No reasoning provided',
-        sources: result.sources || [],
-        confidence: result.confidence || 5,
-        searchQuery: result.searchQuery || preprocessedData.searchQuery
-      };
+      return processedResult;
+      
     } catch (error) {
       console.error('Error verifying claim with Perplexity:', error);
       throw error;
     }
   }
 
-  parseUnstructuredVerification(content, searchQuery) {
-    // Basic parsing for unstructured responses
-    const lines = content.split('\n').filter(line => line.trim());
+  async processPerplexityResponse(perplexityResponse, originalClaim) {
+    const systemPrompt = `You are processing a fact-checking response from Perplexity. Extract and structure the information for display.
+
+**ORIGINAL CLAIM:**
+${originalClaim}
+
+**PERPLEXITY RESPONSE:**
+${perplexityResponse}
+
+**YOUR TASK:**
+Parse this response and return a JSON object with exactly this structure:
+
+{
+  "status": "verified_true" | "verified_false" | "partially_true" | "needs_context" | "cannot_find_answer",
+  "reasoning": "2-3 sentence summary of why this verification status was chosen",
+  "sources": ["array", "of", "source", "URLs", "found"],
+  "searchQuery": "summary of what was actually searched for",
+  "confidence": number from 1-10 based on source quality and recency
+}
+
+**VERIFICATION STATUS GUIDELINES:**
+- verified_true: Multiple reliable sources confirm the claim
+- verified_false: Reliable sources contradict the claim  
+- partially_true: Some elements confirmed, others not or outdated
+- needs_context: Information found but requires additional context
+- cannot_find_answer: Insufficient reliable information available
+
+**REASONING SHOULD:**
+- Be concise but specific
+- Mention key contradictions or confirmations
+- Note if information is outdated
+
+**SOURCES ARRAY:**
+- Only include actual URLs found in the Perplexity response
+- Max 3-4 most relevant sources
+- Empty array if no good sources found
+
+**CONFIDENCE SCORING:**
+- 8-10: Multiple recent, authoritative sources
+- 5-7: Some good sources but limited or older data
+- 1-4: Weak sources or conflicting information
+
+Return only valid JSON, no other text.`;
+
+    const userPrompt = `Process this Perplexity response and return the structured JSON:
+
+${perplexityResponse}`;
+
+    try {
+      const response = await this.makeRequest([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ], 0.3); // Use default model (GPT-4o-mini) for processing
+
+      const content = response.choices[0].message.content.trim();
+      
+      try {
+        // Extract JSON from response
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          
+          // Validate required fields and provide defaults
+          return {
+            status: parsed.status || 'cannot_find_answer',
+            reasoning: parsed.reasoning || 'Unable to process verification results',
+            sources: Array.isArray(parsed.sources) ? parsed.sources : [],
+            confidence: parsed.confidence || 5,
+            searchQuery: parsed.searchQuery || 'Unknown search query'
+          };
+        } else {
+          throw new Error('No JSON found in response');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse processed response:', parseError);
+        
+        // Fallback: create basic response from Perplexity content
+        return this.createFallbackResponse(perplexityResponse);
+      }
+      
+    } catch (error) {
+      console.error('Error processing Perplexity response:', error);
+      return this.createFallbackResponse(perplexityResponse);
+    }
+  }
+
+  createFallbackResponse(perplexityResponse) {
+    // Basic fallback processing
+    const lowerResponse = perplexityResponse.toLowerCase();
     
     let status = 'cannot_find_answer';
-    let reasoning = '';
-    const sources = [];
-    let confidence = 5;
-
-    // Look for status keywords
-    const statusKeywords = {
-      'verified_true': ['verified true', 'claim is true', 'accurate', 'correct', 'confirmed'],
-      'verified_false': ['verified false', 'claim is false', 'inaccurate', 'incorrect', 'refuted'],
-      'partially_true': ['partially true', 'partly accurate', 'mixed', 'some aspects true'],
-      'needs_context': ['needs context', 'requires context', 'depends', 'conditional'],
-      'cannot_find_answer': ['cannot find', 'no information', 'unable to verify', 'insufficient data']
-    };
-
-    const lowerContent = content.toLowerCase();
-    for (const [key, keywords] of Object.entries(statusKeywords)) {
-      if (keywords.some(keyword => lowerContent.includes(keyword))) {
-        status = key;
-        break;
-      }
+    if (lowerResponse.includes('true') || lowerResponse.includes('accurate') || lowerResponse.includes('correct')) {
+      status = 'verified_true';
+    } else if (lowerResponse.includes('false') || lowerResponse.includes('inaccurate') || lowerResponse.includes('incorrect')) {
+      status = 'verified_false';
+    } else if (lowerResponse.includes('partial') || lowerResponse.includes('mixed')) {
+      status = 'partially_true';
+    } else if (lowerResponse.includes('context') || lowerResponse.includes('depends')) {
+      status = 'needs_context';
     }
-
-    // Extract reasoning (usually the main body)
-    reasoning = lines.filter(line => 
-      !line.startsWith('http') && 
-      !line.match(/^(source|confidence|status):/i)
-    ).join(' ').trim();
-
-    // Extract sources (URLs)
+    
+    // Extract URLs
     const urlRegex = /https?:\/\/[^\s]+/g;
-    const urls = content.match(urlRegex);
-    if (urls) {
-      sources.push(...urls);
-    }
-
-    // Extract confidence if mentioned
-    const confidenceMatch = content.match(/confidence:?\s*(\d+)/i);
-    if (confidenceMatch) {
-      confidence = parseInt(confidenceMatch[1], 10);
-    }
-
+    const sources = perplexityResponse.match(urlRegex) || [];
+    
     return {
       status,
-      reasoning: reasoning || content.substring(0, 500),
-      sources,
-      confidence,
-      searchQuery
+      reasoning: perplexityResponse.substring(0, 300) + '...',
+      sources: sources.slice(0, 3), // Max 3 sources
+      confidence: 5,
+      searchQuery: 'Processed from Perplexity response'
     };
   }
 }
 
 module.exports = new OpenRouterClient();
-</file>
-
-<file path="vercel.json">
-{
-  "buildCommand": "npm run install-all && npm run build",
-  "outputDirectory": "client/build",
-  "framework": "create-react-app",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
-</file>
-
-<file path=".gitignore">
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-.vercel
-</file>
-
-<file path="README.md">
-# Sense Checkr - Professional Investment Memo Fact-Checking Tool
-
-A sophisticated B2B investment memo fact-checking application that helps financial analysts extract and verify factual claims from investment memos. Built with Node.js, React, and TypeScript, featuring an elegant design inspired by The Economist's clean, authoritative aesthetic.
-
-## Features
-
-- **AI-Powered Claim Extraction**: Automatically extracts factual claims from investment memos using OpenRouter API with GPT-4o-mini
-- **Professional UI**: Clean, newspaper-like layout with The Economist-inspired design
-- **Split-Screen Verification**: View original memo alongside extracted claims with synchronized highlighting
-- **Claim Categorization**: Automatic categorization into financial, market, operational, and other claims
-- **Real-time Progress Tracking**: Visual indicators for verification progress and status summaries
-- **Sample Memo**: Built-in realistic investment memo for testing
-
-## Tech Stack
-
-- **Backend**: Node.js + Express
-- **Frontend**: React 18 + TypeScript (Create React App)
-- **Styling**: CSS Modules with custom design system
-- **State Management**: React Context + useReducer
-- **Icons**: Lucide React
-- **LLM Integration**: OpenRouter API with GPT-4o-mini
-
-## Prerequisites
-
-- Node.js (v14 or higher)
-- npm or yarn
-- OpenRouter API key
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd sense-checkr
-```
-
-2. Install dependencies:
-```bash
-npm run install-all
-```
-
-3. Create a `.env.local` file in the root directory with your OpenRouter API key:
-```env
-OPENROUTER_API_KEY=your_api_key_here
-```
-
-## Running the Application
-
-Development mode (runs both server and client):
-```bash
-npm run dev
-```
-
-The application will be available at:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
-
-## API Endpoints
-
-- `POST /api/claims/extract` - Extract claims from memo text
-- `GET /api/claims/sample` - Get sample investment memo
-- `GET /api/health` - Health check endpoint
-
-## Project Structure
-
-```
-sense-checkr/
-├── server/
-│   ├── routes/api/         # API route handlers
-│   ├── middleware/         # Express middleware
-│   ├── utils/              # Utility functions (OpenRouter client)
-│   └── server.js           # Express server setup
-├── client/
-│   ├── public/             # Static files
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── contexts/       # React Context providers
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── styles/         # CSS files
-│   │   ├── types/          # TypeScript interfaces
-│   │   └── App.tsx         # Main App component
-└── package.json            # Root package.json
-
-```
-
-## Design System
-
-The application uses a custom design system inspired by The Economist:
-
-### Colors
-- Primary: Deep red (#E3120B)
-- Secondary: Charcoal (#2C2C2C)
-- Accent: Navy blue (#1B365D)
-- Success: Forest green (#228B22)
-- Warning: Amber (#FFB000)
-- Error: Crimson (#DC143C)
-
-### Typography
-- Headlines: Georgia serif font
-- Body text: System sans-serif fonts
-- Professional hierarchy with clear visual distinction
-
-## Features in Detail
-
-### Memo Input
-- Large, professional textarea with character count
-- Sample memo button for quick testing
-- Validation for minimum/maximum length
-- Clear error messaging
-
-### Claim Verification Interface
-- Split-screen layout: 60% memo, 40% claims
-- Color-coded highlighting based on verification status
-- Hover interactions for claim synchronization
-- Progress indicators with statistics
-
-### Claim Cards
-- Status indicators (unverified, true, false, assumption)
-- Category badges with distinct colors
-- Confidence scores with visual bars
-- One-click status updates
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License.
-</file>
-
-<file path="server/server.js">
-// Load environment variables - try multiple paths for different deployment scenarios
-require('dotenv').config({ path: '../.env.local' });
-require('dotenv').config({ path: '.env.local' });
-require('dotenv').config({ path: '.env' });
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const errorHandler = require('./middleware/errorHandler');
-const claimsRouter = require('./routes/api/claims');
-
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-// Security middleware
-app.use(helmet());
-
-// CORS configuration
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
-    : 'http://localhost:3000',
-  credentials: true
-}));
-
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-
-// Rate limiting
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
-});
-
-// Apply rate limiting to API routes
-app.use('/api/', apiLimiter);
-
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
-});
-
-// API routes
-app.use('/api/claims', claimsRouter);
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Error handling middleware (must be last)
-app.use(errorHandler);
-
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Sense Checkr server running on port ${PORT}`);
-});
 </file>
 
 </files>

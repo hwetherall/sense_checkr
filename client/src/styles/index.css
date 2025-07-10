@@ -352,6 +352,144 @@
   border-color: var(--color-gray-400);
 }
 
+/* Perplexity Note - Compact Version */
+.perplexity-note {
+  background-color: var(--color-gray-50);
+  border-left: 3px solid var(--color-gray-400);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin: var(--spacing-md) 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.perplexity-note.perplexity-true {
+  background-color: rgba(34, 139, 34, 0.05);
+  border-left-color: var(--color-success);
+}
+
+.perplexity-note.perplexity-false {
+  background-color: rgba(220, 20, 60, 0.05);
+  border-left-color: var(--color-error);
+}
+
+.perplexity-note.perplexity-partial {
+  background-color: rgba(255, 176, 0, 0.05);
+  border-left-color: var(--color-warning);
+}
+
+.perplexity-note.perplexity-context {
+  background-color: rgba(27, 54, 93, 0.05);
+  border-left-color: var(--color-accent);
+}
+
+.perplexity-note.perplexity-unknown {
+  background-color: var(--color-gray-50);
+  border-left-color: var(--color-gray-400);
+}
+
+.perplexity-note .perplexity-reasoning {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-secondary);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+/* Status Badge Updates for Perplexity */
+.status-badge.status-perplexity-true {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.status-badge.status-perplexity-false {
+  background-color: var(--color-error);
+  color: white;
+}
+
+.status-badge.status-perplexity-partial {
+  background-color: var(--color-warning);
+  color: white;
+}
+
+.status-badge.status-perplexity-context {
+  background-color: var(--color-accent);
+  color: white;
+}
+
+.status-badge.status-perplexity-unknown {
+  background-color: var(--color-gray-500);
+  color: white;
+}
+
+/* Verification Type Badge */
+.verification-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 4px 8px;
+  background-color: var(--color-accent-light);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.verification-type-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Compact Sources */
+.perplexity-sources-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 12px;
+}
+
+.perplexity-sources-compact .sources-label {
+  color: var(--color-gray-600);
+  font-weight: 500;
+}
+
+.source-link-compact {
+  color: var(--color-primary);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--color-primary);
+  padding: 0 2px;
+}
+
+.source-link-compact:hover {
+  border-bottom-style: solid;
+}
+
+.more-sources {
+  color: var(--color-gray-500);
+  font-style: italic;
+}
+
+/* Claim Card Status Classes for Perplexity */
+.claim-card.status-perplexity-true {
+  border-left: 3px solid var(--color-success);
+}
+
+.claim-card.status-perplexity-false {
+  border-left: 3px solid var(--color-error);
+}
+
+.claim-card.status-perplexity-partial {
+  border-left: 3px solid var(--color-warning);
+}
+
+.claim-card.status-perplexity-context {
+  border-left: 3px solid var(--color-accent);
+}
+
+.claim-card.status-perplexity-unknown {
+  border-left: 3px solid var(--color-gray-400);
+}
+
 .perplexity-header {
   display: flex;
   align-items: center;
@@ -897,6 +1035,16 @@
   
   .company-type-toggle {
     flex-direction: column;
+  }
+  
+  .perplexity-note {
+    margin: var(--spacing-sm) -var(--spacing-sm);
+    border-radius: 0;
+  }
+  
+  .verification-type-badge {
+    font-size: 10px;
+    padding: 2px 6px;
   }
 
   .claims-list {

@@ -28,7 +28,13 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, memoText: action.payload };
     
     case 'SET_CLAIMS':
-      return { ...state, claims: action.payload };
+      return { 
+        ...state, 
+        claims: action.payload.map(claim => ({
+          ...claim,
+          verificationState: claim.verificationState || 'idle'
+        }))
+      };
     
     case 'UPDATE_CLAIM_STATUS':
       return {
@@ -62,18 +68,55 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     
     case 'SET_CLAIM_VERIFYING':
-      return {
+      console.log('SET_CLAIM_VERIFYING action:', action.payload);
+      const verifyingState = {
         ...state,
         claims: state.claims.map(claim =>
           claim.id === action.payload.claimId
             ? {
                 ...claim,
                 verificationState: action.payload.isVerifying
-                  ? 'verifying-perplexity'
-                  : 'idle',
+                  ? ('verifying-perplexity' as const)
+                  : (claim.verificationState === 'verifying-perplexity' ? ('idle' as const) : claim.verificationState),
               }
             : claim
         ),
+      };
+      console.log('After SET_CLAIM_VERIFYING, claim state:', verifyingState.claims.find(c => c.id === action.payload.claimId));
+      return verifyingState;
+    
+    case 'SET_CLAIM_VERIFIED':
+      console.log('SET_CLAIM_VERIFIED action:', action.payload);
+      console.log('Current claims before update:', state.claims);
+      const updatedState = {
+        ...state,
+        claims: state.claims.map(claim => {
+          if (claim.id === action.payload.claimId) {
+            const updatedClaim = { ...claim, verificationState: 'verified-perplexity' as const };
+            console.log('Updating claim from:', claim);
+            console.log('Updating claim to:', updatedClaim);
+            return updatedClaim;
+          }
+          return claim;
+        }),
+        perplexityResults: {
+          ...state.perplexityResults,
+          [action.payload.claimId]: action.payload.result,
+        },
+      };
+      console.log('Updated state claims:', updatedState.claims);
+      console.log('Updated claim:', updatedState.claims.find(c => c.id === action.payload.claimId));
+      return updatedState;
+    
+    case 'SET_CLAIM_VERIFICATION_ERROR':
+      return {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.claimId
+            ? { ...claim, verificationState: 'verification-error' }
+            : claim
+        ),
+        error: action.payload.error,
       };
     
     case 'RESET':
