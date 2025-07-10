@@ -15,6 +15,8 @@ const initialState: AppState = {
   processingTime: null,
   companyType: 'external',
   perplexityResults: {},
+  documents: [],
+  documentVerificationResults: {},
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -69,6 +71,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     
     case 'SET_CLAIM_VERIFYING':
       console.log('SET_CLAIM_VERIFYING action:', action.payload);
+      const verificationType = action.payload.verificationType || 'perplexity';
       const verifyingState = {
         ...state,
         claims: state.claims.map(claim =>
@@ -76,8 +79,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
             ? {
                 ...claim,
                 verificationState: action.payload.isVerifying
-                  ? ('verifying-perplexity' as const)
-                  : (claim.verificationState === 'verifying-perplexity' ? ('idle' as const) : claim.verificationState),
+                  ? (`verifying-${verificationType}` as const)
+                  : (claim.verificationState === `verifying-${verificationType}` ? ('idle' as const) : claim.verificationState),
               }
             : claim
         ),
@@ -87,7 +90,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
     
     case 'SET_CLAIM_VERIFIED':
       console.log('SET_CLAIM_VERIFIED action:', action.payload);
-      console.log('Current claims before update:', state.claims);
       const updatedState = {
         ...state,
         claims: state.claims.map(claim => {
@@ -117,6 +119,42 @@ function appReducer(state: AppState, action: AppAction): AppState {
             : claim
         ),
         error: action.payload.error,
+      };
+    
+    case 'SET_DOCUMENTS':
+      return { ...state, documents: action.payload };
+    
+    case 'ADD_DOCUMENT':
+      return { ...state, documents: [...state.documents, action.payload] };
+    
+    case 'REMOVE_DOCUMENT':
+      return {
+        ...state,
+        documents: state.documents.filter(doc => doc.id !== action.payload),
+      };
+    
+    case 'SET_DOCUMENT_VERIFICATION_RESULT':
+      return {
+        ...state,
+        documentVerificationResults: {
+          ...state.documentVerificationResults,
+          [action.payload.claimId]: action.payload.result,
+        },
+      };
+    
+    case 'SET_CLAIM_DOCUMENT_VERIFIED':
+      console.log('SET_CLAIM_DOCUMENT_VERIFIED action:', action.payload);
+      return {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.claimId
+            ? { ...claim, verificationState: 'verified-document' as const }
+            : claim
+        ),
+        documentVerificationResults: {
+          ...state.documentVerificationResults,
+          [action.payload.claimId]: action.payload.result,
+        },
       };
     
     case 'RESET':

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Check, X, AlertCircle, HelpCircle, Globe, FileText, User, Loader, ExternalLink } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Check, X, AlertCircle, HelpCircle, Globe, FileText, User, Loader, ExternalLink, Info } from 'lucide-react';
 import { Claim } from '../../types';
 import { useClaimExtraction } from '../../hooks/useClaimExtraction';
 import { usePerplexityVerification } from '../../hooks/usePerplexityVerification';
+import { useDocumentVerification } from '../../hooks/useDocumentVerification';
 
 interface ClaimCardProps {
   claim: Claim;
@@ -12,11 +13,39 @@ interface ClaimCardProps {
 export function ClaimCard({ claim, onHover }: ClaimCardProps) {
   const { updateClaimStatus } = useClaimExtraction();
   const { verifyClaimWithPerplexity, getPerplexityResult, isVerifyingClaim } = usePerplexityVerification();
+  const { 
+    verifyClaimWithDocuments, 
+    getDocumentVerificationResult, 
+    isVerifyingClaimWithDocuments,
+    hasDocumentVerificationResult,
+    hasDocuments 
+  } = useDocumentVerification();
   const [showManualVerify, setShowManualVerify] = useState(false);
+  const [showPromptTooltip, setShowPromptTooltip] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
+        setShowPromptTooltip(false);
+      }
+    }
+
+    if (showPromptTooltip) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showPromptTooltip]);
 
   const perplexityResult = getPerplexityResult(claim.id);
+  const documentResult = getDocumentVerificationResult(claim.id);
   const isVerifying = isVerifyingClaim(claim.id);
+  const isVerifyingDocs = isVerifyingClaimWithDocuments(claim.id);
   const hasPerplexityResult = !!(perplexityResult && claim.verificationState === 'verified-perplexity');
+  const hasDocResult = hasDocumentVerificationResult(claim.id);
 
   // Debug logging
   console.log('ClaimCard Debug:', {
@@ -36,7 +65,26 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
     verifyClaimWithPerplexity(claim.id);
   };
 
+  const handleDocumentVerify = () => {
+    console.log('Verify with Documents clicked for claim:', claim.id);
+    verifyClaimWithDocuments(claim.id);
+  };
+
   const getStatusIcon = () => {
+    // If we have document results, show appropriate icon
+    if (hasDocResult && documentResult) {
+      switch (documentResult.status) {
+        case 'found':
+          return <Check size={16} />;
+        case 'contradicted':
+          return <X size={16} />;
+        case 'not_found':
+          return <HelpCircle size={16} />;
+        default:
+          return <FileText size={16} />;
+      }
+    }
+    
     // If we have Perplexity results, show appropriate icon
     if (hasPerplexityResult) {
       switch (perplexityResult.status) {
@@ -68,7 +116,12 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
   };
 
   const getDisplayStatus = () => {
-    // Prioritize Perplexity status if available
+    // Prioritize document status if available
+    if (hasDocResult && documentResult) {
+      return getDocumentStatusText(documentResult.status);
+    }
+    
+    // Otherwise use Perplexity status if available
     if (hasPerplexityResult) {
       return getPerplexityStatusText(perplexityResult.status);
     }
@@ -78,6 +131,11 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
   };
 
   const getStatusClass = () => {
+    // Use document status class if available
+    if (hasDocResult && documentResult) {
+      return `status-${getDocumentStatusClass(documentResult.status)}`;
+    }
+    
     // Use Perplexity status class if available
     if (hasPerplexityResult) {
       return `status-${getPerplexityStatusClass(perplexityResult.status)}`;
@@ -85,21 +143,6 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
     
     // Otherwise use manual status class
     return `status-${claim.status}`;
-  };
-
-  const getConfidencePercentage = () => {
-    // Use Perplexity confidence if available
-    if (hasPerplexityResult && perplexityResult.confidence) {
-      return (perplexityResult.confidence / 10) * 100;
-    }
-    return (claim.confidence / 10) * 100;
-  };
-
-  const getConfidenceValue = () => {
-    if (hasPerplexityResult && perplexityResult.confidence) {
-      return perplexityResult.confidence;
-    }
-    return claim.confidence;
   };
 
   const getPerplexityStatusText = (status: string) => {
@@ -136,6 +179,32 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
     }
   };
 
+  const getDocumentStatusText = (status: string) => {
+    switch (status) {
+      case 'found':
+        return 'Found in Docs';
+      case 'contradicted':
+        return 'Contradicted';
+      case 'not_found':
+        return 'Not Found';
+      default:
+        return status;
+    }
+  };
+
+  const getDocumentStatusClass = (status: string) => {
+    switch (status) {
+      case 'found':
+        return 'document-found';
+      case 'contradicted':
+        return 'document-contradicted';
+      case 'not_found':
+        return 'document-not-found';
+      default:
+        return '';
+    }
+  };
+
   return (
     <div
       className={`claim-card ${getStatusClass()} fade-in`}
@@ -157,16 +226,12 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
               AI Verified
             </span>
           )}
-        </div>
-        <div className="claim-confidence">
-          <span className="label">Confidence</span>
-          <div className="confidence-bar">
-            <div
-              className="confidence-fill"
-              style={{ width: `${getConfidencePercentage()}%` }}
-            />
-          </div>
-          <span className="confidence-value">{getConfidenceValue()}/10</span>
+          {hasDocResult && (
+            <span className="verification-type-badge">
+              <FileText size={12} />
+              Doc Verified
+            </span>
+          )}
         </div>
       </div>
 
@@ -174,9 +239,54 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
         <p className="claim-text">{claim.text}</p>
       </div>
 
+      {hasDocResult && documentResult && (
+        <div className={`document-note ${getDocumentStatusClass(documentResult.status)}`}>
+          <p className="document-reasoning">{documentResult.reasoning}</p>
+          {documentResult.citations.length > 0 && (
+            <div className="document-citations">
+              <span className="citations-label">Found in:</span>
+              {documentResult.citations.map((citation, index) => (
+                <div key={index} className="citation-item">
+                  <span className="citation-file">{citation.fileName}</span>
+                  <span className="citation-location">{citation.location}</span>
+                  {citation.content && (
+                    <p className="citation-content">"{citation.content}"</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {hasPerplexityResult && (
         <div className={`perplexity-note ${getPerplexityStatusClass(perplexityResult.status)}`}>
-          <p className="perplexity-reasoning">{perplexityResult.reasoning}</p>
+          <div className="perplexity-header">
+            <p className="perplexity-reasoning">{perplexityResult.reasoning}</p>
+            {perplexityResult.searchPrompt && (
+              <div className="prompt-info-container" ref={tooltipRef}>
+                <button
+                  className="btn-prompt-info"
+                  onMouseEnter={() => setShowPromptTooltip(true)}
+                  onMouseLeave={() => setShowPromptTooltip(false)}
+                  onClick={() => setShowPromptTooltip(!showPromptTooltip)}
+                  aria-label="Show prompt sent to Perplexity"
+                >
+                  <Info size={14} />
+                </button>
+                {showPromptTooltip && (
+                  <div className="prompt-tooltip">
+                    <div className="prompt-tooltip-header">
+                      <strong>Prompt sent to Perplexity:</strong>
+                    </div>
+                    <div className="prompt-tooltip-content">
+                      {perplexityResult.searchPrompt}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           {perplexityResult.sources.length > 0 && (
             <div className="perplexity-sources-compact">
               <span className="sources-label">Sources:</span>
@@ -227,11 +337,13 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
             Verify with Perplexity
           </button>
           <button
-            className="btn btn-sm btn-icon btn-disabled"
-            disabled={true}
-            aria-label="Verify with Docs (Coming Soon)"
+            onClick={handleDocumentVerify}
+            className={`btn btn-sm btn-icon ${isVerifyingDocs ? 'btn-loading' : ''} ${!hasDocuments ? 'btn-disabled' : ''}`}
+            disabled={isVerifyingDocs || claim.verificationState === 'verified-document' || !hasDocuments}
+            aria-label={hasDocuments ? "Verify with Docs" : "Verify with Docs (Upload documents first)"}
+            title={!hasDocuments ? "Upload documents first" : undefined}
           >
-            <FileText size={16} />
+            {isVerifyingDocs ? <Loader className="spinner" size={16} /> : <FileText size={16} />}
             Verify with Docs
           </button>
           <button

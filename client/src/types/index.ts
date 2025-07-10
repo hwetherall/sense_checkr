@@ -5,7 +5,7 @@ export interface Claim {
   category: 'financial' | 'market' | 'operational' | 'other';
   confidence: number; // 1-10
   range: [number, number]; // Character positions
-  verificationState?: 'idle' | 'verifying-perplexity' | 'verified-perplexity' | 'verification-error';
+  verificationState?: 'idle' | 'verifying-perplexity' | 'verified-perplexity' | 'verifying-document' | 'verified-document' | 'verification-error';
 }
 
 export interface PerplexityResult {
@@ -14,6 +14,28 @@ export interface PerplexityResult {
   sources: string[];
   confidence?: number;
   searchQuery: string;
+  searchPrompt?: string; // The actual prompt sent to Perplexity
+  timestamp: string;
+}
+
+export interface Document {
+  id: string;
+  fileName: string;
+  fileType: 'excel' | 'pdf';
+  uploadTime: string;
+  processed: boolean;
+  chunkCount?: number;
+}
+
+export interface DocumentVerificationResult {
+  status: 'found' | 'not_found' | 'contradicted';
+  reasoning: string;
+  citations: Array<{
+    fileName: string;
+    location: string; // "Sheet: Revenue, Cell: B15" or "Page: 23"
+    content: string; // actual content found
+  }>;
+  confidence: number;
   timestamp: string;
 }
 
@@ -26,6 +48,8 @@ export interface AppState {
   processingTime: number | null;
   companyType: 'external' | 'internal';
   perplexityResults: Record<string, PerplexityResult>;
+  documents: Document[];
+  documentVerificationResults: Record<string, DocumentVerificationResult>;
 }
 
 export type AppAction =
@@ -38,9 +62,14 @@ export type AppAction =
   | { type: 'SET_PROCESSING_TIME'; payload: number }
   | { type: 'SET_COMPANY_TYPE'; payload: 'external' | 'internal' }
   | { type: 'SET_PERPLEXITY_RESULT'; payload: { claimId: string; result: PerplexityResult } }
-  | { type: 'SET_CLAIM_VERIFYING'; payload: { claimId: string; isVerifying: boolean } }
+  | { type: 'SET_CLAIM_VERIFYING'; payload: { claimId: string; isVerifying: boolean; verificationType?: 'perplexity' | 'document' } }
   | { type: 'SET_CLAIM_VERIFIED'; payload: { claimId: string; result: PerplexityResult } }
   | { type: 'SET_CLAIM_VERIFICATION_ERROR'; payload: { claimId: string; error: string } }
+  | { type: 'SET_DOCUMENTS'; payload: Document[] }
+  | { type: 'ADD_DOCUMENT'; payload: Document }
+  | { type: 'REMOVE_DOCUMENT'; payload: string }
+  | { type: 'SET_DOCUMENT_VERIFICATION_RESULT'; payload: { claimId: string; result: DocumentVerificationResult } }
+  | { type: 'SET_CLAIM_DOCUMENT_VERIFIED'; payload: { claimId: string; result: DocumentVerificationResult } }
   | { type: 'RESET' };
 
 export interface ClaimExtractionResponse {

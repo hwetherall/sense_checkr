@@ -354,4 +354,408 @@
   height: 64px;
   margin: 0 auto var(--spacing-lg);
   color: var(--color-gray-400);
+}
+
+/* =========================================
+   DOCUMENT REPOSITORY STYLES
+   ========================================= */
+
+.document-repository {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.repository-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+}
+
+.repository-header .header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.repository-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.document-count {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.toggle-btn {
+  padding: 0.5rem;
+}
+
+.repository-content {
+  padding: 1.5rem;
+}
+
+/* Document Upload Styles */
+.document-upload {
+  margin-bottom: 1.5rem;
+}
+
+.upload-area {
+  display: block;
+  width: 100%;
+  padding: 2rem;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-area:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.upload-area.drag-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-lightest);
+}
+
+.upload-area.uploading {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upload-content svg {
+  color: var(--color-text-secondary);
+}
+
+.upload-text {
+  font-weight: 500;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.upload-hint {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.upload-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-error-lightest);
+  border: 1px solid var(--color-error-light);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: 0.875rem;
+}
+
+/* Document List Styles */
+.document-list {
+  margin-top: 1.5rem;
+}
+
+.document-list h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  margin: 0 0 1rem 0;
+}
+
+.document-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.document-item:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.document-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.file-icon {
+  flex-shrink: 0;
+}
+
+.file-icon.pdf {
+  color: var(--color-error);
+}
+
+.file-icon.excel {
+  color: var(--color-success);
+}
+
+.document-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.document-name {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.document-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.delete-btn {
+  padding: 0.5rem;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  color: var(--color-error);
+  background: var(--color-error-lightest);
+}
+
+.delete-btn.deleting {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary);
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+.empty-hint {
+  font-size: 0.875rem;
+  margin-top: 0.5rem !important;
+}
+
+/* Document Verification Results */
+.document-note {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  border: 1px solid var(--color-border);
+}
+
+.document-note.document-found {
+  background-color: var(--color-success-lightest);
+  border-color: var(--color-success-light);
+}
+
+.document-note.document-contradicted {
+  background-color: var(--color-error-lightest);
+  border-color: var(--color-error-light);
+}
+
+.document-note.document-not-found {
+  background-color: var(--color-warning-lightest);
+  border-color: var(--color-warning-light);
+}
+
+.document-reasoning {
+  margin: 0 0 0.5rem 0;
+  color: var(--color-text);
+}
+
+.document-citations {
+  margin-top: 0.75rem;
+}
+
+.citations-label {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.citation-item {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: var(--radius-xs);
+}
+
+.citation-file {
+  font-weight: 500;
+  color: var(--color-primary);
+  margin-right: 0.5rem;
+}
+
+.citation-location {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.citation-content {
+  margin: 0.25rem 0 0 0;
+  font-style: italic;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+/* Status badge updates */
+.status-badge.status-document-found {
+  background-color: var(--color-success-lightest);
+  color: var(--color-success);
+  border-color: var(--color-success-light);
+}
+
+.status-badge.status-document-contradicted {
+  background-color: var(--color-error-lightest);
+  color: var(--color-error);
+  border-color: var(--color-error-light);
+}
+
+.status-badge.status-document-not-found {
+  background-color: var(--color-warning-lightest);
+  color: var(--color-warning);
+  border-color: var(--color-warning-light);
+}
+
+/* Progress indicator doc verified status */
+.status-icon.doc-verified {
+  background-color: var(--color-primary-lightest);
+  color: var(--color-primary);
+}
+
+/* Perplexity Prompt Info Styles */
+.perplexity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.prompt-info-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.btn-prompt-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-background);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.btn-prompt-info:hover {
+  background: var(--color-primary-lightest);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.prompt-tooltip {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 320px;
+  max-width: 90vw;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  margin-top: 0.5rem;
+}
+
+.prompt-tooltip-header {
+  padding: 0.75rem 1rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.prompt-tooltip-content {
+  padding: 1rem;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Arrow for tooltip */
+.prompt-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 12px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid var(--color-border);
+}
+
+.prompt-tooltip::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: 12px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid var(--color-surface-raised);
+}
+
+/* Document Repository in Input Page */
+.memo-input-container .document-repository {
+  margin-bottom: 2rem;
+  margin-top: 1rem;
+}
+
+.memo-input-container .document-repository .repository-header {
+  background: var(--color-surface-raised);
 } 

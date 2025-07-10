@@ -181,8 +181,9 @@ ${memoContext}
     } catch (error) {
       console.error('Error preprocessing claim:', error);
       // Fallback: create a basic prompt if preprocessing fails
+      const fallbackPrompt = `I need to verify this claim from an investment memo: "${claimText}". This is about ${companyType === 'internal' ? 'an internal corporate venture' : 'an external company'}. Can you help verify if this claim is accurate?`;
       return {
-        perplexityPrompt: `I need to verify this claim from an investment memo: "${claimText}". This is about ${companyType === 'internal' ? 'an internal corporate venture' : 'an external company'}. Can you help verify if this claim is accurate?`,
+        perplexityPrompt: fallbackPrompt,
         originalClaim: claimText,
         companyType
       };
@@ -209,7 +210,11 @@ ${memoContext}
         preprocessedData.originalClaim
       );
       
-      return processedResult;
+      // Step 3: Add the original searchPrompt to the result
+      return {
+        ...processedResult,
+        searchPrompt: perplexityPrompt // Preserve the original prompt
+      };
       
     } catch (error) {
       console.error('Error verifying claim with Perplexity:', error);
@@ -329,6 +334,102 @@ ${perplexityResponse}`;
       confidence: 5,
       searchQuery: 'Processed from Perplexity response'
     };
+  }
+
+  async verifyClaimWithDocuments(claimText, documentChunks) {
+    const systemPrompt = `You are a document verification assistant. Your task is to verify if a claim can be supported by the provided document chunks.
+
+**CLAIM TO VERIFY:**
+${claimText}
+
+**YOUR TASK:**
+1. Search through the provided document chunks for information that supports, contradicts, or provides context for the claim
+2. Pay special attention to specific numbers, dates, percentages, and facts
+3. Note the exact location where relevant information was found
+4. Determine if the claim is supported by the documents
+
+**VERIFICATION STATUSES:**
+- found: The claim is clearly supported by the documents
+- not_found: No relevant information found in the documents
+- contradicted: The documents contain information that contradicts the claim
+
+Return a JSON object with this exact structure:
+{
+  "status": "found" | "not_found" | "contradicted",
+  "reasoning": "Brief explanation of your findings",
+  "citations": [
+    {
+      "fileName": "document name",
+      "location": "specific location like 'Sheet: Revenue, Cell: B15' or 'Page: 23'",
+      "content": "the actual relevant content found"
+    }
+  ],
+  "confidence": 1-10 based on how well the documents support/contradict the claim
+}`;
+
+    try {
+      // Format chunks for the AI
+      const formattedChunks = documentChunks.map((chunk, index) => {
+        let location = '';
+        if (chunk.metadata.type === 'excel') {
+          location = `Sheet: ${chunk.metadata.sheetName}${chunk.metadata.cellRange ? ', Cells: ' + chunk.metadata.cellRange.split(', ').slice(0, 5).join(', ') : ''}`;
+        } else if (chunk.metadata.type === 'pdf') {
+          location = `Page: ${chunk.metadata.pageNumber}`;
+        }
+        
+        return `[Chunk ${index + 1} - ${chunk.metadata.fileName} - ${location}]
+${chunk.content}
+---`;
+      }).join('\n\n');
+
+      const userPrompt = `Here are the document chunks to search through:
+
+${formattedChunks}
+
+Please verify if the claim "${claimText}" is supported by these documents.`;
+
+      console.log(`Sending document verification request for claim: ${claimText}`);
+      
+      const response = await this.makeRequest([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ], 0.3, this.groqModel);
+
+      const content = response.choices[0].message.content.trim();
+      
+      try {
+        // Extract JSON from response
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const result = JSON.parse(jsonMatch[0]);
+          
+          // Ensure all required fields are present
+          return {
+            status: result.status || 'not_found',
+            reasoning: result.reasoning || 'Unable to verify claim against documents',
+            citations: Array.isArray(result.citations) ? result.citations : [],
+            confidence: result.confidence || 5
+          };
+        } else {
+          throw new Error('No JSON found in response');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse document verification response:', parseError);
+        console.error('Raw response:', content);
+        
+        // Fallback response
+        return {
+          status: 'not_found',
+          reasoning: 'Failed to process document verification results',
+          citations: [],
+          confidence: 0
+        };
+      }
+      
+    } catch (error) {
+      console.error('Error in document verification:', error);
+      throw error;
+    }
   }
 }
 

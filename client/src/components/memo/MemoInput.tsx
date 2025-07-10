@@ -2,6 +2,7 @@ import React, { useState, useCallback, ChangeEvent } from 'react';
 import { FileText, Send, Building2, Briefcase } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useClaimExtraction } from '../../hooks/useClaimExtraction';
+import { DocumentRepository } from '../documents/DocumentRepository';
 
 export function MemoInput() {
   const { state, dispatch } = useApp();
@@ -61,6 +62,8 @@ export function MemoInput() {
           Paste your investment memo below and we'll extract all factual claims for verification
         </p>
       </div>
+
+      <DocumentRepository />
 
       <form onSubmit={handleSubmit} className="memo-form">
         <div className="form-group">

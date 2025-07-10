@@ -117,15 +117,18 @@ router.post('/verify', async (req, res, next) => {
     // Log success
     console.log(`Successfully verified claim ${claimId} in ${processingTime}ms - Result: ${verificationResult.status}`);
 
-    // Send response
-    res.json({
+    const responseData = {
       claimId,
       verificationResult: {
         ...verificationResult,
+        searchPrompt: preprocessedData.perplexityPrompt, // Include the actual prompt sent
         timestamp: new Date().toISOString()
       },
       processingTime
-    });
+    };
+
+    // Send response
+    res.json(responseData);
 
   } catch (error) {
     // Pass error to error handler middleware

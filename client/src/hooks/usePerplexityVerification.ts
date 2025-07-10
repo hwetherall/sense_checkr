@@ -7,26 +7,17 @@ export function usePerplexityVerification() {
 
   const verifyClaimWithPerplexity = useCallback(
     async (claimId: string) => {
-      console.log('Starting verification for claim:', claimId);
       
       const claim = state.claims.find(c => c.id === claimId);
       if (!claim) {
         console.error('Claim not found:', claimId);
         return;
       }
-      console.log('Found claim:', claim);
 
       // Set verifying state
-      console.log('Dispatching SET_CLAIM_VERIFYING...');
       dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: true } });
 
       try {
-        console.log('Making API request with data:', {
-          claimText: claim.text,
-          memoText: state.memoText.substring(0, 100) + '...',
-          companyType: state.companyType,
-          claimId: claim.id,
-        });
         
         const response = await fetch('/api/claims/verify', {
           method: 'POST',
@@ -39,8 +30,7 @@ export function usePerplexityVerification() {
           }),
         });
         
-        console.log('API response status:', response.status);
-
+        
         if (!response.ok) {
           const errorData = await response.json();
           console.error('API error response:', errorData);
@@ -48,7 +38,6 @@ export function usePerplexityVerification() {
         }
 
         const data = await response.json();
-        console.log('Verification API response:', data);
         
         // Update claim with verification result and mark as verified
         dispatch({
@@ -58,7 +47,7 @@ export function usePerplexityVerification() {
             result: data.verificationResult,
           },
         });
-        console.log('Dispatched SET_CLAIM_VERIFIED for claim:', claimId);
+        
 
       } catch (error) {
         console.error('Perplexity verification error:', error);
@@ -74,7 +63,6 @@ export function usePerplexityVerification() {
         });
       } finally {
         // Clear verifying state
-        console.log('Clearing verifying state...');
         dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: false } });
       }
     },
