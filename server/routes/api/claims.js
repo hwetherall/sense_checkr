@@ -27,10 +27,10 @@ router.post('/extract', async (req, res, next) => {
       });
     }
 
-    if (memoText.length > 10000) {
+    if (memoText.length > 20000) {
       return res.status(400).json({
         error: {
-          message: 'Memo text is too long. Maximum length is 10,000 characters.',
+          message: 'Memo text is too long. Maximum length is 20,000 characters.',
           status: 400
         }
       });
@@ -51,6 +51,80 @@ router.post('/extract', async (req, res, next) => {
       processingTime: result.processingTime,
       memoLength: memoText.length,
       claimCount: result.claims.length
+    });
+
+  } catch (error) {
+    // Pass error to error handler middleware
+    next(error);
+  }
+});
+
+// POST /api/claims/verify
+router.post('/verify', async (req, res, next) => {
+  try {
+    const { claimText, memoText, companyType, claimId } = req.body;
+
+    // Validate input
+    if (!claimText || typeof claimText !== 'string') {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: claimText is required and must be a string',
+          status: 400
+        }
+      });
+    }
+
+    if (!memoText || typeof memoText !== 'string') {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: memoText is required and must be a string',
+          status: 400
+        }
+      });
+    }
+
+    if (!companyType || !['external', 'internal'].includes(companyType)) {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: companyType must be either "external" or "internal"',
+          status: 400
+        }
+      });
+    }
+
+    if (!claimId || typeof claimId !== 'string') {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: claimId is required and must be a string',
+          status: 400
+        }
+      });
+    }
+
+    // Log request
+    console.log(`Processing claim verification request - Claim ID: ${claimId}, Company Type: ${companyType}`);
+
+    const startTime = Date.now();
+
+    // Step 1: Preprocess the claim with Groq for context
+    const preprocessedData = await openRouterClient.preprocessClaimForSearch(claimText, memoText, companyType);
+
+    // Step 2: Verify the claim with Perplexity
+    const verificationResult = await openRouterClient.verifyClaimWithPerplexity(preprocessedData);
+
+    const processingTime = Date.now() - startTime;
+
+    // Log success
+    console.log(`Successfully verified claim ${claimId} in ${processingTime}ms - Result: ${verificationResult.status}`);
+
+    // Send response
+    res.json({
+      claimId,
+      verificationResult: {
+        ...verificationResult,
+        timestamp: new Date().toISOString()
+      },
+      processingTime
     });
 
   } catch (error) {

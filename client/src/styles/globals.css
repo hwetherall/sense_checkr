@@ -9,6 +9,7 @@
   /* The Economist Color Palette */
   --color-primary: #E3120B;
   --color-primary-dark: #C10E09;
+  --color-primary-light: rgba(227, 18, 11, 0.05);
   --color-secondary: #2C2C2C;
   --color-accent: #1B365D;
   --color-accent-light: #2A4B7C;
@@ -24,6 +25,10 @@
   --color-gray-500: #808080;
   --color-gray-600: #666666;
   --color-gray-700: #4A4A4A;
+  --color-red-50: rgba(220, 20, 60, 0.05);
+  --color-red-200: #FECACA;
+  --color-red-500: #EF4444;
+  --color-red-800: #991B1B;
   
   /* Spacing */
   --spacing-xs: 4px;

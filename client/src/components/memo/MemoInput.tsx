@@ -1,11 +1,11 @@
 import React, { useState, useCallback, ChangeEvent } from 'react';
-import { FileText, Send } from 'lucide-react';
+import { FileText, Send, Building2, Briefcase } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useClaimExtraction } from '../../hooks/useClaimExtraction';
 
 export function MemoInput() {
   const { state, dispatch } = useApp();
-  const { memoText, error } = state;
+  const { memoText, error, companyType } = state;
   const { extractClaims, fetchSampleMemo, isExtracting } = useClaimExtraction();
   const [isLoadingSample, setIsLoadingSample] = useState(false);
 
@@ -17,6 +17,13 @@ export function MemoInput() {
       }
     },
     [dispatch, error]
+  );
+
+  const handleCompanyTypeChange = useCallback(
+    (type: 'external' | 'internal') => {
+      dispatch({ type: 'SET_COMPANY_TYPE', payload: type });
+    },
+    [dispatch]
   );
 
   const handleUseSample = useCallback(async () => {
@@ -44,7 +51,7 @@ export function MemoInput() {
   );
 
   const characterCount = memoText.length;
-  const isValid = characterCount >= 50 && characterCount <= 10000;
+  const isValid = characterCount >= 50 && characterCount <= 20000;
 
   return (
     <div className="memo-input-container">
@@ -56,6 +63,42 @@ export function MemoInput() {
       </div>
 
       <form onSubmit={handleSubmit} className="memo-form">
+        <div className="form-group">
+          <label className="form-label">Company Type</label>
+          <div className="company-type-toggle">
+            <label className={`radio-option ${companyType === 'external' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="companyType"
+                value="external"
+                checked={companyType === 'external'}
+                onChange={() => handleCompanyTypeChange('external')}
+                disabled={isExtracting}
+              />
+              <Building2 size={20} />
+              <div>
+                <span className="radio-label">External Company</span>
+                <span className="radio-help">Real companies that exist publicly</span>
+              </div>
+            </label>
+            <label className={`radio-option ${companyType === 'internal' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="companyType"
+                value="internal"
+                checked={companyType === 'internal'}
+                onChange={() => handleCompanyTypeChange('internal')}
+                disabled={isExtracting}
+              />
+              <Briefcase size={20} />
+              <div>
+                <span className="radio-label">Internal Venture</span>
+                <span className="radio-help">Internal corporate projects</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <div className="form-group">
           <label htmlFor="memo-text" className="form-label">
             Memo Text
@@ -80,7 +123,7 @@ export function MemoInput() {
               Use Sample Memo
             </button>
             <div id="character-count" className="character-count">
-              {characterCount} / 10,000 characters
+              {characterCount} / 20,000 characters
               {characterCount < 50 && characterCount > 0 && (
                 <span className="text-error"> (minimum 50)</span>
               )}
@@ -107,68 +150,4 @@ export function MemoInput() {
       </form>
     </div>
   );
-}
-
-// Add component-specific styles
-const styles = `
-.memo-input-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: var(--spacing-xl) 0;
-  animation: fadeIn var(--transition-medium) ease-out;
-}
-
-.memo-input-header {
-  text-align: center;
-  margin-bottom: var(--spacing-xl);
-}
-
-.memo-form {
-  background-color: white;
-  border-radius: var(--radius-md);
-  padding: var(--spacing-xl);
-  box-shadow: var(--shadow-md);
-}
-
-.memo-textarea {
-  min-height: 400px;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 16px;
-  line-height: 1.8;
-}
-
-.form-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: var(--spacing-sm);
-}
-
-.form-actions {
-  display: flex;
-  justify-content: center;
-  margin-top: var(--spacing-xl);
-}
-
-@media (max-width: 768px) {
-  .memo-input-container {
-    padding: var(--spacing-lg) var(--spacing-md);
-  }
-  
-  .memo-form {
-    padding: var(--spacing-lg);
-  }
-  
-  .memo-textarea {
-    min-height: 300px;
-  }
-  
-  .form-footer {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-sm);
-  }
-}
-`;
-
-export const memoInputStyles = styles; 
+} 

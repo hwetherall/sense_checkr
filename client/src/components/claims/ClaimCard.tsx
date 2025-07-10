@@ -1,7 +1,8 @@
-import React from 'react';
-import { Check, X, AlertCircle, HelpCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, X, AlertCircle, HelpCircle, Globe, FileText, User, Loader, ExternalLink } from 'lucide-react';
 import { Claim } from '../../types';
 import { useClaimExtraction } from '../../hooks/useClaimExtraction';
+import { usePerplexityVerification } from '../../hooks/usePerplexityVerification';
 
 interface ClaimCardProps {
   claim: Claim;
@@ -10,9 +11,18 @@ interface ClaimCardProps {
 
 export function ClaimCard({ claim, onHover }: ClaimCardProps) {
   const { updateClaimStatus } = useClaimExtraction();
+  const { verifyClaimWithPerplexity, getPerplexityResult, isVerifyingClaim } = usePerplexityVerification();
+  const [showManualVerify, setShowManualVerify] = useState(false);
+
+  const perplexityResult = getPerplexityResult(claim.id);
+  const isVerifying = isVerifyingClaim(claim.id);
 
   const handleStatusChange = (status: Claim['status']) => {
     updateClaimStatus(claim.id, status);
+  };
+
+  const handlePerplexityVerify = () => {
+    verifyClaimWithPerplexity(claim.id);
   };
 
   const getStatusIcon = () => {
@@ -30,6 +40,40 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
 
   const getConfidencePercentage = () => {
     return (claim.confidence / 10) * 100;
+  };
+
+  const getPerplexityStatusText = (status: string) => {
+    switch (status) {
+      case 'verified_true':
+        return 'Verified True';
+      case 'verified_false':
+        return 'Verified False';
+      case 'partially_true':
+        return 'Partially True';
+      case 'needs_context':
+        return 'Needs Context';
+      case 'cannot_find_answer':
+        return 'Cannot Find Answer';
+      default:
+        return status;
+    }
+  };
+
+  const getPerplexityStatusClass = (status: string) => {
+    switch (status) {
+      case 'verified_true':
+        return 'perplexity-true';
+      case 'verified_false':
+        return 'perplexity-false';
+      case 'partially_true':
+        return 'perplexity-partial';
+      case 'needs_context':
+        return 'perplexity-context';
+      case 'cannot_find_answer':
+        return 'perplexity-unknown';
+      default:
+        return '';
+    }
   };
 
   return (
@@ -64,132 +108,102 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
         <p className="claim-text">{claim.text}</p>
       </div>
 
+      {perplexityResult && claim.verificationState === 'verified-perplexity' && (
+        <div className={`perplexity-results ${getPerplexityStatusClass(perplexityResult.status)}`}>
+          <div className="perplexity-header">
+            <Globe size={16} />
+            <span className="perplexity-status">{getPerplexityStatusText(perplexityResult.status)}</span>
+            <span className="perplexity-timestamp">
+              {new Date(perplexityResult.timestamp).toLocaleString()}
+            </span>
+          </div>
+          <p className="perplexity-reasoning">{perplexityResult.reasoning}</p>
+          {perplexityResult.sources.length > 0 && (
+            <div className="perplexity-sources">
+              <span className="sources-label">Sources:</span>
+              {perplexityResult.sources.map((source, index) => (
+                <a
+                  key={index}
+                  href={source}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="source-link"
+                >
+                  <ExternalLink size={12} />
+                  {new URL(source).hostname}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {claim.verificationState === 'verification-error' && (
+        <div className="verification-error-message">
+          <AlertCircle size={16} />
+          <span>Verification failed. Please try again.</span>
+        </div>
+      )}
+
       <div className="claim-actions">
         <p className="label">Verify this claim:</p>
-        <div className="status-buttons">
+        <div className="verification-options">
           <button
-            onClick={() => handleStatusChange('true')}
-            className={`btn btn-sm ${claim.status === 'true' ? 'btn-primary' : 'btn-ghost'}`}
-            aria-label="Mark as true"
+            onClick={handlePerplexityVerify}
+            className={`btn btn-sm btn-icon ${isVerifying ? 'btn-loading' : ''}`}
+            disabled={isVerifying || claim.verificationState === 'verified-perplexity'}
+            aria-label="Verify with Perplexity"
           >
-            <Check size={16} />
-            True
+            {isVerifying ? <Loader className="spinner" size={16} /> : <Globe size={16} />}
+            Verify with Perplexity
           </button>
           <button
-            onClick={() => handleStatusChange('false')}
-            className={`btn btn-sm ${claim.status === 'false' ? 'btn-primary' : 'btn-ghost'}`}
-            aria-label="Mark as false"
+            className="btn btn-sm btn-icon btn-disabled"
+            disabled={true}
+            aria-label="Verify with Docs (Coming Soon)"
           >
-            <X size={16} />
-            False
+            <FileText size={16} />
+            Verify with Docs
           </button>
           <button
-            onClick={() => handleStatusChange('assumption')}
-            className={`btn btn-sm ${claim.status === 'assumption' ? 'btn-primary' : 'btn-ghost'}`}
-            aria-label="Mark as assumption"
+            onClick={() => setShowManualVerify(!showManualVerify)}
+            className={`btn btn-sm btn-icon ${showManualVerify ? 'btn-active' : ''}`}
+            aria-label="Verify by Human"
           >
-            <AlertCircle size={16} />
-            Assumption
+            <User size={16} />
+            Verify by Human
           </button>
         </div>
+        
+        {showManualVerify && (
+          <div className="status-buttons">
+            <button
+              onClick={() => handleStatusChange('true')}
+              className={`btn btn-sm ${claim.status === 'true' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as true"
+            >
+              <Check size={16} />
+              True
+            </button>
+            <button
+              onClick={() => handleStatusChange('false')}
+              className={`btn btn-sm ${claim.status === 'false' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as false"
+            >
+              <X size={16} />
+              False
+            </button>
+            <button
+              onClick={() => handleStatusChange('assumption')}
+              className={`btn btn-sm ${claim.status === 'assumption' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as assumption"
+            >
+              <AlertCircle size={16} />
+              Assumption
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
-}
-
-// Add component-specific styles
-const styles = `
-.claim-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--spacing-md);
-  gap: var(--spacing-md);
-}
-
-.claim-badges {
-  display: flex;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
-}
-
-.claim-confidence {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  min-width: 150px;
-}
-
-.confidence-bar {
-  flex: 1;
-  height: 6px;
-  background-color: var(--color-gray-200);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.confidence-fill {
-  height: 100%;
-  background-color: var(--color-accent);
-  transition: width var(--transition-medium);
-}
-
-.confidence-value {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-gray-600);
-  min-width: 35px;
-  text-align: right;
-}
-
-.claim-content {
-  margin-bottom: var(--spacing-lg);
-}
-
-.claim-text {
-  font-size: 16px;
-  line-height: 1.6;
-  color: var(--color-secondary);
-  margin: 0;
-}
-
-.claim-actions {
-  border-top: 1px solid var(--color-gray-200);
-  padding-top: var(--spacing-md);
-}
-
-.claim-actions .label {
-  margin-bottom: var(--spacing-sm);
-}
-
-.status-buttons {
-  display: flex;
-  gap: var(--spacing-sm);
-  flex-wrap: wrap;
-}
-
-.status-buttons .btn {
-  flex: 1;
-  min-width: 100px;
-}
-
-@media (max-width: 768px) {
-  .claim-header {
-    flex-direction: column;
-  }
-  
-  .claim-confidence {
-    width: 100%;
-  }
-  
-  .status-buttons {
-    flex-direction: column;
-  }
-  
-  .status-buttons .btn {
-    width: 100%;
-  }
-}
-`;
-
-export const claimCardStyles = styles; 
+} 

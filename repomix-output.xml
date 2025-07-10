@@ -1,0 +1,4318 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+client/.gitignore
+client/package.json
+client/public/index.html
+client/public/manifest.json
+client/public/robots.txt
+client/README.md
+client/src/App.test.tsx
+client/src/App.tsx
+client/src/components/claims/ClaimCard.tsx
+client/src/components/claims/ClaimsList.tsx
+client/src/components/claims/ProgressIndicator.tsx
+client/src/components/common/ErrorBoundary.tsx
+client/src/components/common/Header.tsx
+client/src/components/common/LoadingSpinner.tsx
+client/src/components/memo/MemoHighlighter.tsx
+client/src/components/memo/MemoInput.tsx
+client/src/contexts/AppContext.tsx
+client/src/hooks/useClaimExtraction.ts
+client/src/hooks/usePerplexityVerification.ts
+client/src/index.tsx
+client/src/react-app-env.d.ts
+client/src/reportWebVitals.ts
+client/src/setupTests.ts
+client/src/styles/components.css
+client/src/styles/globals.css
+client/src/styles/index.css
+client/src/styles/typography.css
+client/src/types/index.ts
+client/tsconfig.json
+package.json
+README.md
+server/middleware/errorHandler.js
+server/package.json
+server/railway.json
+server/render.yaml
+server/routes/api/claims.js
+server/server.js
+server/utils/openrouter.js
+vercel.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="client/src/hooks/usePerplexityVerification.ts">
+import { useCallback } from 'react';
+import { useApp } from '../contexts/AppContext';
+import { PerplexityResult } from '../types';
+
+export function usePerplexityVerification() {
+  const { state, dispatch } = useApp();
+
+  const verifyClaimWithPerplexity = useCallback(
+    async (claimId: string) => {
+      const claim = state.claims.find(c => c.id === claimId);
+      if (!claim) {
+        console.error('Claim not found:', claimId);
+        return;
+      }
+
+      // Set verifying state
+      dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: true } });
+
+      try {
+        const response = await fetch('/api/claims/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            claimText: claim.text,
+            memoText: state.memoText,
+            companyType: state.companyType,
+            claimId: claim.id,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || 'Verification failed');
+        }
+
+        const data = await response.json();
+        
+        // Update claim with verification result
+        dispatch({
+          type: 'SET_PERPLEXITY_RESULT',
+          payload: {
+            claimId,
+            result: data.verificationResult,
+          },
+        });
+
+        // Update claim state to show verification is complete
+        const updatedClaims = state.claims.map(c =>
+          c.id === claimId
+            ? { ...c, verificationState: 'verified-perplexity' as const }
+            : c
+        );
+        dispatch({ type: 'SET_CLAIMS', payload: updatedClaims });
+
+      } catch (error) {
+        console.error('Perplexity verification error:', error);
+        
+        // Update claim state to show error
+        const updatedClaims = state.claims.map(c =>
+          c.id === claimId
+            ? { ...c, verificationState: 'verification-error' as const }
+            : c
+        );
+        dispatch({ type: 'SET_CLAIMS', payload: updatedClaims });
+
+        // Show error message
+        dispatch({
+          type: 'SET_ERROR',
+          payload: error instanceof Error ? error.message : 'Verification failed',
+        });
+      } finally {
+        // Clear verifying state
+        dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: false } });
+      }
+    },
+    [state.claims, state.memoText, state.companyType, dispatch]
+  );
+
+  const getPerplexityResult = useCallback(
+    (claimId: string): PerplexityResult | undefined => {
+      return state.perplexityResults[claimId];
+    },
+    [state.perplexityResults]
+  );
+
+  const isVerifyingClaim = useCallback(
+    (claimId: string): boolean => {
+      const claim = state.claims.find(c => c.id === claimId);
+      return claim?.verificationState === 'verifying-perplexity' || false;
+    },
+    [state.claims]
+  );
+
+  return {
+    verifyClaimWithPerplexity,
+    getPerplexityResult,
+    isVerifyingClaim,
+  };
+}
+</file>
+
+<file path="client/.gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+</file>
+
+<file path="client/package.json">
+{
+  "name": "client",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.126",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "axios": "^1.10.0",
+    "lucide-react": "^0.525.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-scripts": "5.0.1",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
+</file>
+
+<file path="client/public/index.html">
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#E3120B" />
+    <meta
+      name="description"
+      content="Professional investment memo fact-checking tool"
+    />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!--
+      Notice the use of %PUBLIC_URL% in the tags above.
+      It will be replaced with the URL of the `public` folder during the build.
+      Only files inside the `public` folder can be referenced from the HTML.
+
+      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+      work correctly both with client-side routing and a non-root public URL.
+      Learn how to configure a non-root public URL by running `npm run build`.
+    -->
+    <title>Sense Checkr - Investment Memo Fact Checking</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+  </body>
+</html>
+</file>
+
+<file path="client/public/manifest.json">
+{
+  "short_name": "React App",
+  "name": "Create React App Sample",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
+</file>
+
+<file path="client/public/robots.txt">
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Disallow:
+</file>
+
+<file path="client/README.md">
+# Getting Started with Create React App
+
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+
+## Available Scripts
+
+In the project directory, you can run:
+
+### `npm start`
+
+Runs the app in the development mode.\
+Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+
+The page will reload if you make edits.\
+You will also see any lint errors in the console.
+
+### `npm test`
+
+Launches the test runner in the interactive watch mode.\
+See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+
+### `npm run build`
+
+Builds the app for production to the `build` folder.\
+It correctly bundles React in production mode and optimizes the build for the best performance.
+
+The build is minified and the filenames include the hashes.\
+Your app is ready to be deployed!
+
+See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+
+### `npm run eject`
+
+**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+
+If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+
+Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+
+You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+
+## Learn More
+
+You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+
+To learn React, check out the [React documentation](https://reactjs.org/).
+</file>
+
+<file path="client/src/App.test.tsx">
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import App from './App';
+
+test('renders learn react link', () => {
+  render(<App />);
+  const linkElement = screen.getByText(/learn react/i);
+  expect(linkElement).toBeInTheDocument();
+});
+</file>
+
+<file path="client/src/App.tsx">
+import React from 'react';
+import { AppProvider, useApp } from './contexts/AppContext';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { Header } from './components/common/Header';
+import { LoadingSpinner } from './components/common/LoadingSpinner';
+import { MemoInput } from './components/memo/MemoInput';
+import { MemoHighlighter } from './components/memo/MemoHighlighter';
+import './styles/index.css';
+
+function AppContent() {
+  const { state } = useApp();
+  const { currentStep, isLoading } = state;
+
+  return (
+    <div className="app">
+      <Header />
+      <main className="main-content">
+        <div className="container">
+          {isLoading ? (
+            <LoadingSpinner message="Extracting claims from your investment memo..." />
+          ) : (
+            <>
+              {currentStep === 'input' && <MemoInput />}
+              {currentStep === 'verify' && <MemoHighlighter />}
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
+  );
+}
+
+export default App;
+</file>
+
+<file path="client/src/components/claims/ClaimCard.tsx">
+import React, { useState } from 'react';
+import { Check, X, AlertCircle, HelpCircle, Globe, FileText, User, Loader, ExternalLink } from 'lucide-react';
+import { Claim } from '../../types';
+import { useClaimExtraction } from '../../hooks/useClaimExtraction';
+import { usePerplexityVerification } from '../../hooks/usePerplexityVerification';
+
+interface ClaimCardProps {
+  claim: Claim;
+  onHover?: (claimId: string | null) => void;
+}
+
+export function ClaimCard({ claim, onHover }: ClaimCardProps) {
+  const { updateClaimStatus } = useClaimExtraction();
+  const { verifyClaimWithPerplexity, getPerplexityResult, isVerifyingClaim } = usePerplexityVerification();
+  const [showManualVerify, setShowManualVerify] = useState(false);
+
+  const perplexityResult = getPerplexityResult(claim.id);
+  const isVerifying = isVerifyingClaim(claim.id);
+
+  const handleStatusChange = (status: Claim['status']) => {
+    updateClaimStatus(claim.id, status);
+  };
+
+  const handlePerplexityVerify = () => {
+    verifyClaimWithPerplexity(claim.id);
+  };
+
+  const getStatusIcon = () => {
+    switch (claim.status) {
+      case 'true':
+        return <Check size={16} />;
+      case 'false':
+        return <X size={16} />;
+      case 'assumption':
+        return <AlertCircle size={16} />;
+      default:
+        return <HelpCircle size={16} />;
+    }
+  };
+
+  const getConfidencePercentage = () => {
+    return (claim.confidence / 10) * 100;
+  };
+
+  const getPerplexityStatusText = (status: string) => {
+    switch (status) {
+      case 'verified_true':
+        return 'Verified True';
+      case 'verified_false':
+        return 'Verified False';
+      case 'partially_true':
+        return 'Partially True';
+      case 'needs_context':
+        return 'Needs Context';
+      case 'cannot_find_answer':
+        return 'Cannot Find Answer';
+      default:
+        return status;
+    }
+  };
+
+  const getPerplexityStatusClass = (status: string) => {
+    switch (status) {
+      case 'verified_true':
+        return 'perplexity-true';
+      case 'verified_false':
+        return 'perplexity-false';
+      case 'partially_true':
+        return 'perplexity-partial';
+      case 'needs_context':
+        return 'perplexity-context';
+      case 'cannot_find_answer':
+        return 'perplexity-unknown';
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <div
+      className={`claim-card status-${claim.status} fade-in`}
+      onMouseEnter={() => onHover?.(claim.id)}
+      onMouseLeave={() => onHover?.(null)}
+    >
+      <div className="claim-header">
+        <div className="claim-badges">
+          <span className={`category-badge ${claim.category}`}>
+            {claim.category}
+          </span>
+          <span className={`status-badge status-${claim.status}`}>
+            {getStatusIcon()}
+            {claim.status === 'unverified' ? 'Unverified' : claim.status}
+          </span>
+        </div>
+        <div className="claim-confidence">
+          <span className="label">Confidence</span>
+          <div className="confidence-bar">
+            <div
+              className="confidence-fill"
+              style={{ width: `${getConfidencePercentage()}%` }}
+            />
+          </div>
+          <span className="confidence-value">{claim.confidence}/10</span>
+        </div>
+      </div>
+
+      <div className="claim-content">
+        <p className="claim-text">{claim.text}</p>
+      </div>
+
+      {perplexityResult && claim.verificationState === 'verified-perplexity' && (
+        <div className={`perplexity-results ${getPerplexityStatusClass(perplexityResult.status)}`}>
+          <div className="perplexity-header">
+            <Globe size={16} />
+            <span className="perplexity-status">{getPerplexityStatusText(perplexityResult.status)}</span>
+            <span className="perplexity-timestamp">
+              {new Date(perplexityResult.timestamp).toLocaleString()}
+            </span>
+          </div>
+          <p className="perplexity-reasoning">{perplexityResult.reasoning}</p>
+          {perplexityResult.sources.length > 0 && (
+            <div className="perplexity-sources">
+              <span className="sources-label">Sources:</span>
+              {perplexityResult.sources.map((source, index) => (
+                <a
+                  key={index}
+                  href={source}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="source-link"
+                >
+                  <ExternalLink size={12} />
+                  {new URL(source).hostname}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {claim.verificationState === 'verification-error' && (
+        <div className="verification-error-message">
+          <AlertCircle size={16} />
+          <span>Verification failed. Please try again.</span>
+        </div>
+      )}
+
+      <div className="claim-actions">
+        <p className="label">Verify this claim:</p>
+        <div className="verification-options">
+          <button
+            onClick={handlePerplexityVerify}
+            className={`btn btn-sm btn-icon ${isVerifying ? 'btn-loading' : ''}`}
+            disabled={isVerifying || claim.verificationState === 'verified-perplexity'}
+            aria-label="Verify with Perplexity"
+          >
+            {isVerifying ? <Loader className="spinner" size={16} /> : <Globe size={16} />}
+            Verify with Perplexity
+          </button>
+          <button
+            className="btn btn-sm btn-icon btn-disabled"
+            disabled={true}
+            aria-label="Verify with Docs (Coming Soon)"
+          >
+            <FileText size={16} />
+            Verify with Docs
+          </button>
+          <button
+            onClick={() => setShowManualVerify(!showManualVerify)}
+            className={`btn btn-sm btn-icon ${showManualVerify ? 'btn-active' : ''}`}
+            aria-label="Verify by Human"
+          >
+            <User size={16} />
+            Verify by Human
+          </button>
+        </div>
+        
+        {showManualVerify && (
+          <div className="status-buttons">
+            <button
+              onClick={() => handleStatusChange('true')}
+              className={`btn btn-sm ${claim.status === 'true' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as true"
+            >
+              <Check size={16} />
+              True
+            </button>
+            <button
+              onClick={() => handleStatusChange('false')}
+              className={`btn btn-sm ${claim.status === 'false' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as false"
+            >
+              <X size={16} />
+              False
+            </button>
+            <button
+              onClick={() => handleStatusChange('assumption')}
+              className={`btn btn-sm ${claim.status === 'assumption' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as assumption"
+            >
+              <AlertCircle size={16} />
+              Assumption
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/components/claims/ClaimsList.tsx">
+import React from 'react';
+import { ClaimCard } from './ClaimCard';
+import { Claim } from '../../types';
+
+interface ClaimsListProps {
+  claims: Claim[];
+  onClaimHover?: (claimId: string | null) => void;
+}
+
+export function ClaimsList({ claims, onClaimHover }: ClaimsListProps) {
+  if (claims.length === 0) {
+    return (
+      <div className="empty-state">
+        <p className="body-large">No claims found in the memo.</p>
+      </div>
+    );
+  }
+
+  const categorizedClaims = claims.reduce((acc, claim) => {
+    if (!acc[claim.category]) {
+      acc[claim.category] = [];
+    }
+    acc[claim.category].push(claim);
+    return acc;
+  }, {} as Record<string, Claim[]>);
+
+  const categoryOrder = ['financial', 'market', 'operational', 'other'];
+  const sortedCategories = Object.keys(categorizedClaims).sort(
+    (a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b)
+  );
+
+  return (
+    <div className="claims-list">
+      {sortedCategories.map((category) => (
+        <div key={category} className="claims-category">
+          <h3 className="category-title">
+            {category.charAt(0).toUpperCase() + category.slice(1)} Claims
+            <span className="category-count">
+              ({categorizedClaims[category].length})
+            </span>
+          </h3>
+          <div className="claims-grid">
+            {categorizedClaims[category].map((claim) => (
+              <ClaimCard
+                key={claim.id}
+                claim={claim}
+                onHover={onClaimHover}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Add component-specific styles
+const styles = `
+.claims-list {
+  padding: var(--spacing-lg) 0;
+}
+
+.claims-category {
+  margin-bottom: var(--spacing-xxl);
+}
+
+.category-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+}
+
+.category-count {
+  font-size: 16px;
+  font-weight: normal;
+  color: var(--color-gray-600);
+}
+
+.claims-grid {
+  display: grid;
+  gap: var(--spacing-lg);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1200px) {
+  .claims-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .claims-list {
+    padding: var(--spacing-md) 0;
+  }
+  
+  .claims-category {
+    margin-bottom: var(--spacing-xl);
+  }
+}
+`;
+
+export const claimsListStyles = styles;
+</file>
+
+<file path="client/src/components/claims/ProgressIndicator.tsx">
+import React from 'react';
+import { Check, X, AlertCircle, HelpCircle } from 'lucide-react';
+import { Claim } from '../../types';
+
+interface ProgressIndicatorProps {
+  claims: Claim[];
+  processingTime?: number | null;
+}
+
+export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorProps) {
+  const statusCounts = claims.reduce(
+    (acc, claim) => {
+      acc[claim.status]++;
+      acc.total++;
+      return acc;
+    },
+    { unverified: 0, true: 0, false: 0, assumption: 0, total: 0 }
+  );
+
+  const verifiedCount = statusCounts.true + statusCounts.false + statusCounts.assumption;
+  const progressPercentage = claims.length > 0 ? (verifiedCount / claims.length) * 100 : 0;
+
+  return (
+    <div className="progress-indicator">
+      <div className="progress-header">
+        <h3 className="headline-3">Verification Progress</h3>
+        {processingTime && (
+          <p className="processing-time">
+            Extracted in {(processingTime / 1000).toFixed(1)}s
+          </p>
+        )}
+      </div>
+
+      <div className="progress-bar-container">
+        <div className="progress-bar">
+          <div
+            className="progress-fill"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+        <p className="progress-text">
+          {verifiedCount} of {claims.length} claims verified ({Math.round(progressPercentage)}%)
+        </p>
+      </div>
+
+      <div className="status-summary">
+        <div className="status-item">
+          <div className="status-icon true">
+            <Check size={16} />
+          </div>
+          <span className="status-label">True</span>
+          <span className="status-count">{statusCounts.true}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon false">
+            <X size={16} />
+          </div>
+          <span className="status-label">False</span>
+          <span className="status-count">{statusCounts.false}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon assumption">
+            <AlertCircle size={16} />
+          </div>
+          <span className="status-label">Assumptions</span>
+          <span className="status-count">{statusCounts.assumption}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon unverified">
+            <HelpCircle size={16} />
+          </div>
+          <span className="status-label">Unverified</span>
+          <span className="status-count">{statusCounts.unverified}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/components/common/ErrorBoundary.tsx">
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle } from 'lucide-react';
+
+interface Props {
+  children: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error: Error | null;
+}
+
+export class ErrorBoundary extends Component<Props, State> {
+  public state: State = {
+    hasError: false,
+    error: null,
+  };
+
+  public static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Uncaught error:', error, errorInfo);
+  }
+
+  private handleReset = () => {
+    this.setState({ hasError: false, error: null });
+    window.location.reload();
+  };
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div className="error-boundary">
+          <div className="error-boundary-content">
+            <AlertTriangle size={48} className="error-boundary-icon" />
+            <h2 className="headline-2">Something went wrong</h2>
+            <p className="body-text error-boundary-message">
+              We encountered an unexpected error. Please try refreshing the page.
+            </p>
+            {this.state.error && (
+              <details className="error-boundary-details">
+                <summary>Technical details</summary>
+                <pre>{this.state.error.toString()}</pre>
+              </details>
+            )}
+            <button onClick={this.handleReset} className="btn btn-primary">
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Add error boundary styles
+const styles = `
+.error-boundary {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-light);
+}
+
+.error-boundary-content {
+  text-align: center;
+  max-width: 500px;
+  padding: var(--spacing-xl);
+  background-color: white;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.error-boundary-icon {
+  color: var(--color-error);
+  margin-bottom: var(--spacing-lg);
+}
+
+.error-boundary-message {
+  margin-bottom: var(--spacing-lg);
+  color: var(--color-gray-600);
+}
+
+.error-boundary-details {
+  margin: var(--spacing-lg) 0;
+  text-align: left;
+  padding: var(--spacing-md);
+  background-color: var(--color-gray-100);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+.error-boundary-details summary {
+  cursor: pointer;
+  font-weight: 500;
+  margin-bottom: var(--spacing-sm);
+}
+
+.error-boundary-details pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  color: var(--color-gray-700);
+}
+`;
+
+export const errorBoundaryStyles = styles;
+</file>
+
+<file path="client/src/components/common/Header.tsx">
+import React from 'react';
+import { FileText, CheckCircle } from 'lucide-react';
+import { useApp } from '../../contexts/AppContext';
+
+export function Header() {
+  const { state } = useApp();
+  const { currentStep } = state;
+
+  return (
+    <header className="header">
+      <div className="container">
+        <div className="header-content">
+          <div className="header-brand">
+            <h1 className="brand-title">
+              <span className="brand-icon">
+                <FileText size={32} />
+              </span>
+              Sense Checkr
+            </h1>
+            <p className="brand-subtitle">Professional Investment Memo Fact-Checking</p>
+          </div>
+          
+          <nav className="header-nav">
+            <div className="step-indicator">
+              <div className={`step ${currentStep === 'input' ? 'active' : 'completed'}`}>
+                <span className="step-number">1</span>
+                <span className="step-label">Input Memo</span>
+              </div>
+              <div className="step-connector"></div>
+              <div className={`step ${currentStep === 'verify' ? 'active' : ''}`}>
+                <span className="step-number">
+                  {currentStep === 'verify' ? '2' : <CheckCircle size={20} />}
+                </span>
+                <span className="step-label">Verify Claims</span>
+              </div>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// Add styles
+const styles = `
+.header {
+  background-color: white;
+  border-bottom: 2px solid var(--color-primary);
+  padding: var(--spacing-lg) 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-brand {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: bold;
+  color: var(--color-secondary);
+  margin: 0;
+}
+
+.brand-icon {
+  color: var(--color-primary);
+}
+
+.brand-subtitle {
+  font-size: 14px;
+  color: var(--color-gray-600);
+  margin: 4px 0 0 48px;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+}
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-medium);
+}
+
+.step.active {
+  background-color: var(--color-gray-100);
+}
+
+.step.completed .step-number {
+  color: var(--color-success);
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--color-gray-200);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all var(--transition-medium);
+}
+
+.step.active .step-number {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.step-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-secondary);
+}
+
+.step-connector {
+  width: 40px;
+  height: 2px;
+  background-color: var(--color-gray-300);
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+  
+  .brand-subtitle {
+    margin-left: 0;
+  }
+}
+`;
+
+// Export styles for inclusion in main CSS
+export const headerStyles = styles;
+</file>
+
+<file path="client/src/components/common/LoadingSpinner.tsx">
+import React from 'react';
+
+interface LoadingSpinnerProps {
+  message?: string;
+}
+
+export function LoadingSpinner({ message = 'Loading...' }: LoadingSpinnerProps) {
+  return (
+    <div className="spinner-container">
+      <div className="spinner-content">
+        <div className="spinner"></div>
+        <p className="spinner-message">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+// Add spinner-specific styles
+const styles = `
+.spinner-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.spinner-message {
+  font-size: 16px;
+  color: var(--color-gray-600);
+  margin: 0;
+  animation: fadeIn var(--transition-medium) ease-out;
+}
+`;
+
+export const loadingSpinnerStyles = styles;
+</file>
+
+<file path="client/src/components/memo/MemoHighlighter.tsx">
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useApp } from '../../contexts/AppContext';
+import { ClaimsList } from '../claims/ClaimsList';
+import { ProgressIndicator } from '../claims/ProgressIndicator';
+import { Claim } from '../../types';
+
+export function MemoHighlighter() {
+  const { state, dispatch } = useApp();
+  const { memoText, claims, processingTime } = state;
+  const [hoveredClaimId, setHoveredClaimId] = useState<string | null>(null);
+  const [isMemoCollapsed, setIsMemoCollapsed] = useState(true);
+  const memoRef = useRef<HTMLDivElement>(null);
+
+  const highlightedMemo = useMemo(() => {
+    if (!memoText || claims.length === 0) return memoText;
+
+    const sortedClaims = [...claims].sort((a, b) => a.range[0] - b.range[0]);
+    let result = [];
+    let lastIndex = 0;
+
+    sortedClaims.forEach((claim) => {
+      const [start, end] = claim.range;
+      
+      // Add text before the claim
+      if (start > lastIndex) {
+        result.push(
+          <span key={`text-${lastIndex}`}>
+            {memoText.slice(lastIndex, start)}
+          </span>
+        );
+      }
+
+      // Add the highlighted claim
+      const isHovered = hoveredClaimId === claim.id;
+      result.push(
+        <span
+          key={`claim-${claim.id}`}
+          className={`highlighted-claim status-${claim.status} ${isHovered ? 'hovered' : ''}`}
+          data-claim-id={claim.id}
+          onMouseEnter={() => setHoveredClaimId(claim.id)}
+          onMouseLeave={() => setHoveredClaimId(null)}
+        >
+          {memoText.slice(start, end)}
+        </span>
+      );
+
+      lastIndex = end;
+    });
+
+    // Add remaining text
+    if (lastIndex < memoText.length) {
+      result.push(
+        <span key={`text-${lastIndex}`}>
+          {memoText.slice(lastIndex)}
+        </span>
+      );
+    }
+
+    return result;
+  }, [memoText, claims, hoveredClaimId]);
+
+  // Scroll to highlighted claim when hovering
+  useEffect(() => {
+    if (hoveredClaimId && memoRef.current) {
+      const element = memoRef.current.querySelector(`[data-claim-id="${hoveredClaimId}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [hoveredClaimId]);
+
+  const handleBackToInput = () => {
+    dispatch({ type: 'RESET' });
+  };
+
+  const toggleMemoCollapse = () => {
+    setIsMemoCollapsed(!isMemoCollapsed);
+  };
+
+  return (
+    <div className="memo-highlighter">
+      <div className="highlighter-header">
+        <button onClick={handleBackToInput} className="btn btn-ghost btn-icon">
+          <ArrowLeft size={20} />
+          Back to Input
+        </button>
+        <h2 className="headline-2">Verify Investment Memo Claims</h2>
+      </div>
+
+      <div className={`highlighter-content ${isMemoCollapsed ? 'memo-collapsed' : ''}`}>
+        <div className={`memo-panel ${isMemoCollapsed ? 'collapsed' : ''}`}>
+          <div className="panel-header">
+            <div className="panel-header-content">
+              <h3 className="headline-3">Original Memo</h3>
+              <button
+                onClick={toggleMemoCollapse}
+                className="btn btn-ghost btn-icon collapse-toggle"
+                aria-label={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
+                title={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
+              >
+                {isMemoCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+              </button>
+            </div>
+            {!isMemoCollapsed && (
+              <p className="body-small">Hover over claims to highlight them in the text</p>
+            )}
+          </div>
+          {!isMemoCollapsed && (
+            <div ref={memoRef} className="memo-text-container">
+              <p className="memo-text">{highlightedMemo}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="claims-panel">
+          <div className="sticky-progress-wrapper">
+            <ProgressIndicator claims={claims} processingTime={processingTime} />
+          </div>
+          <div className="claims-list-wrapper">
+            <ClaimsList claims={claims} onClaimHover={setHoveredClaimId} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/components/memo/MemoInput.tsx">
+import React, { useState, useCallback, ChangeEvent } from 'react';
+import { FileText, Send, Building2, Briefcase } from 'lucide-react';
+import { useApp } from '../../contexts/AppContext';
+import { useClaimExtraction } from '../../hooks/useClaimExtraction';
+
+export function MemoInput() {
+  const { state, dispatch } = useApp();
+  const { memoText, error, companyType } = state;
+  const { extractClaims, fetchSampleMemo, isExtracting } = useClaimExtraction();
+  const [isLoadingSample, setIsLoadingSample] = useState(false);
+
+  const handleTextChange = useCallback(
+    (e: ChangeEvent<HTMLTextAreaElement>) => {
+      dispatch({ type: 'SET_MEMO_TEXT', payload: e.target.value });
+      if (error) {
+        dispatch({ type: 'SET_ERROR', payload: null });
+      }
+    },
+    [dispatch, error]
+  );
+
+  const handleCompanyTypeChange = useCallback(
+    (type: 'external' | 'internal') => {
+      dispatch({ type: 'SET_COMPANY_TYPE', payload: type });
+    },
+    [dispatch]
+  );
+
+  const handleUseSample = useCallback(async () => {
+    setIsLoadingSample(true);
+    try {
+      const sampleMemo = await fetchSampleMemo();
+      dispatch({ type: 'SET_MEMO_TEXT', payload: sampleMemo });
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to load sample memo' });
+    } finally {
+      setIsLoadingSample(false);
+    }
+  }, [fetchSampleMemo, dispatch]);
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (memoText.trim().length < 50) {
+        dispatch({ type: 'SET_ERROR', payload: 'Please enter at least 50 characters' });
+        return;
+      }
+      await extractClaims(memoText);
+    },
+    [memoText, extractClaims, dispatch]
+  );
+
+  const characterCount = memoText.length;
+  const isValid = characterCount >= 50 && characterCount <= 20000;
+
+  return (
+    <div className="memo-input-container">
+      <div className="memo-input-header">
+        <h2 className="headline-2">Investment Memo Input</h2>
+        <p className="subtitle">
+          Paste your investment memo below and we'll extract all factual claims for verification
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="memo-form">
+        <div className="form-group">
+          <label className="form-label">Company Type</label>
+          <div className="company-type-toggle">
+            <label className={`radio-option ${companyType === 'external' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="companyType"
+                value="external"
+                checked={companyType === 'external'}
+                onChange={() => handleCompanyTypeChange('external')}
+                disabled={isExtracting}
+              />
+              <Building2 size={20} />
+              <div>
+                <span className="radio-label">External Company</span>
+                <span className="radio-help">Real companies that exist publicly</span>
+              </div>
+            </label>
+            <label className={`radio-option ${companyType === 'internal' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="companyType"
+                value="internal"
+                checked={companyType === 'internal'}
+                onChange={() => handleCompanyTypeChange('internal')}
+                disabled={isExtracting}
+              />
+              <Briefcase size={20} />
+              <div>
+                <span className="radio-label">Internal Venture</span>
+                <span className="radio-help">Internal corporate projects</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="memo-text" className="form-label">
+            Memo Text
+          </label>
+          <textarea
+            id="memo-text"
+            value={memoText}
+            onChange={handleTextChange}
+            className="form-textarea memo-textarea"
+            placeholder="Paste your investment memo here..."
+            disabled={isExtracting}
+            aria-describedby="character-count"
+          />
+          <div className="form-footer">
+            <button
+              type="button"
+              onClick={handleUseSample}
+              className="btn btn-secondary btn-sm"
+              disabled={isExtracting || isLoadingSample}
+            >
+              <FileText size={16} />
+              Use Sample Memo
+            </button>
+            <div id="character-count" className="character-count">
+              {characterCount} / 20,000 characters
+              {characterCount < 50 && characterCount > 0 && (
+                <span className="text-error"> (minimum 50)</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="error-message" role="alert">
+            {error}
+          </div>
+        )}
+
+        <div className="form-actions">
+          <button
+            type="submit"
+            className="btn btn-primary btn-lg btn-icon"
+            disabled={!isValid || isExtracting}
+          >
+            <Send size={20} />
+            {isExtracting ? 'Extracting Claims...' : 'Extract Claims'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/contexts/AppContext.tsx">
+import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import { AppState, AppAction } from '../types';
+
+interface AppContextType {
+  state: AppState;
+  dispatch: React.Dispatch<AppAction>;
+}
+
+const initialState: AppState = {
+  currentStep: 'input',
+  memoText: '',
+  claims: [],
+  isLoading: false,
+  error: null,
+  processingTime: null,
+  companyType: 'external',
+  perplexityResults: {},
+};
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case 'SET_STEP':
+      return { ...state, currentStep: action.payload };
+    
+    case 'SET_MEMO_TEXT':
+      return { ...state, memoText: action.payload };
+    
+    case 'SET_CLAIMS':
+      return { ...state, claims: action.payload };
+    
+    case 'UPDATE_CLAIM_STATUS':
+      return {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.id
+            ? { ...claim, status: action.payload.status }
+            : claim
+        ),
+      };
+    
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
+    
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
+    
+    case 'SET_PROCESSING_TIME':
+      return { ...state, processingTime: action.payload };
+    
+    case 'SET_COMPANY_TYPE':
+      return { ...state, companyType: action.payload };
+    
+    case 'SET_PERPLEXITY_RESULT':
+      return {
+        ...state,
+        perplexityResults: {
+          ...state.perplexityResults,
+          [action.payload.claimId]: action.payload.result,
+        },
+      };
+    
+    case 'SET_CLAIM_VERIFYING':
+      return {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.claimId
+            ? {
+                ...claim,
+                verificationState: action.payload.isVerifying
+                  ? 'verifying-perplexity'
+                  : 'idle',
+              }
+            : claim
+        ),
+      };
+    
+    case 'RESET':
+      return initialState;
+    
+    default:
+      return state;
+  }
+}
+
+interface AppProviderProps {
+  children: ReactNode;
+}
+
+export function AppProvider({ children }: AppProviderProps) {
+  const [state, dispatch] = useReducer(appReducer, initialState);
+
+  return (
+    <AppContext.Provider value={{ state, dispatch }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+export function useApp() {
+  const context = useContext(AppContext);
+  if (context === undefined) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+}
+</file>
+
+<file path="client/src/hooks/useClaimExtraction.ts">
+import { useState, useCallback } from 'react';
+import axios from 'axios';
+import { Claim, ClaimExtractionResponse, SampleMemoResponse } from '../types';
+import { useApp } from '../contexts/AppContext';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
+export function useClaimExtraction() {
+  const { dispatch } = useApp();
+  const [isExtracting, setIsExtracting] = useState(false);
+
+  const extractClaims = useCallback(async (memoText: string) => {
+    setIsExtracting(true);
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: null });
+
+    try {
+      const response = await axios.post<ClaimExtractionResponse>(
+        `${API_BASE_URL}/api/claims/extract`,
+        { memoText },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const { claims, processingTime } = response.data;
+
+      dispatch({ type: 'SET_CLAIMS', payload: claims });
+      dispatch({ type: 'SET_PROCESSING_TIME', payload: processingTime });
+      dispatch({ type: 'SET_STEP', payload: 'verify' });
+
+      return claims;
+    } catch (error) {
+      let errorMessage = 'Failed to extract claims. Please try again.';
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response?.data?.error?.message) {
+          errorMessage = error.response.data.error.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+      }
+
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      throw error;
+    } finally {
+      setIsExtracting(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [dispatch]);
+
+  const fetchSampleMemo = useCallback(async () => {
+    try {
+      const response = await axios.get<SampleMemoResponse>(
+        `${API_BASE_URL}/api/claims/sample`
+      );
+      return response.data.sampleMemo;
+    } catch (error) {
+      console.error('Failed to fetch sample memo:', error);
+      throw error;
+    }
+  }, []);
+
+  const updateClaimStatus = useCallback(
+    (claimId: string, status: Claim['status']) => {
+      dispatch({
+        type: 'UPDATE_CLAIM_STATUS',
+        payload: { id: claimId, status },
+      });
+    },
+    [dispatch]
+  );
+
+  return {
+    extractClaims,
+    fetchSampleMemo,
+    updateClaimStatus,
+    isExtracting,
+  };
+}
+</file>
+
+<file path="client/src/index.tsx">
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import reportWebVitals from './reportWebVitals';
+
+const root = ReactDOM.createRoot(
+  document.getElementById('root') as HTMLElement
+);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+reportWebVitals();
+</file>
+
+<file path="client/src/react-app-env.d.ts">
+/// <reference types="react-scripts" />
+</file>
+
+<file path="client/src/reportWebVitals.ts">
+import { ReportHandler } from 'web-vitals';
+
+const reportWebVitals = (onPerfEntry?: ReportHandler) => {
+  if (onPerfEntry && onPerfEntry instanceof Function) {
+    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+      getCLS(onPerfEntry);
+      getFID(onPerfEntry);
+      getFCP(onPerfEntry);
+      getLCP(onPerfEntry);
+      getTTFB(onPerfEntry);
+    });
+  }
+};
+
+export default reportWebVitals;
+</file>
+
+<file path="client/src/setupTests.ts">
+// jest-dom adds custom jest matchers for asserting on DOM nodes.
+// allows you to do things like:
+// expect(element).toHaveTextContent(/react/i)
+// learn more: https://github.com/testing-library/jest-dom
+import '@testing-library/jest-dom';
+</file>
+
+<file path="client/src/styles/components.css">
+/* Component Styles - The Economist Design System */
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-medium);
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  font-family: inherit;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Primary Button - The Economist Red */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-dark);
+  box-shadow: 0 2px 8px rgba(227, 18, 11, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(227, 18, 11, 0.3);
+}
+
+/* Secondary Button - Navy Outline */
+.btn-secondary {
+  background-color: transparent;
+  color: var(--color-accent);
+  border: 2px solid var(--color-accent);
+  padding: 10px 22px;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-accent);
+  color: white;
+  box-shadow: 0 2px 8px rgba(27, 54, 93, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(27, 54, 93, 0.3);
+}
+
+/* Ghost Button */
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-secondary);
+  border: 1px solid var(--color-gray-300);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--color-gray-100);
+  border-color: var(--color-gray-400);
+}
+
+/* Button Sizes */
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.btn-lg {
+  padding: 16px 32px;
+  font-size: 18px;
+}
+
+/* Button with Icon */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.btn-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Cards */
+.card {
+  background-color: white;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-medium);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+}
+
+.card-header {
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.card-body {
+  margin-bottom: var(--spacing-md);
+}
+
+.card-footer {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-gray-200);
+}
+
+/* Claim Cards */
+.claim-card {
+  background-color: white;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-medium);
+  position: relative;
+  overflow: hidden;
+}
+
+.claim-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background-color: var(--color-gray-300);
+  transition: background-color var(--transition-medium);
+}
+
+.claim-card.status-true::before {
+  background-color: var(--color-success);
+}
+
+.claim-card.status-false::before {
+  background-color: var(--color-error);
+}
+
+.claim-card.status-assumption::before {
+  background-color: var(--color-warning);
+}
+
+.claim-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Forms */
+.form-group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.form-label {
+  display: block;
+  margin-bottom: var(--spacing-sm);
+  font-weight: 500;
+  color: var(--color-secondary);
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: var(--spacing-md);
+  font-size: 16px;
+  font-family: inherit;
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-sm);
+  background-color: white;
+  color: var(--color-secondary);
+  transition: all var(--transition-fast);
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(227, 18, 11, 0.1);
+}
+
+.form-textarea {
+  min-height: 200px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.form-helper {
+  margin-top: var(--spacing-xs);
+  font-size: 14px;
+  color: var(--color-gray-600);
+}
+
+.form-error {
+  margin-top: var(--spacing-xs);
+  font-size: 14px;
+  color: var(--color-error);
+}
+
+/* Character Count */
+.character-count {
+  text-align: right;
+  margin-top: var(--spacing-xs);
+  font-size: 12px;
+  color: var(--color-gray-600);
+}
+
+/* Progress Indicator */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin: var(--spacing-md) 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--color-primary);
+  transition: width var(--transition-slow);
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+.status-badge.status-true {
+  background-color: rgba(34, 139, 34, 0.1);
+  color: var(--color-success);
+}
+
+.status-badge.status-false {
+  background-color: rgba(220, 20, 60, 0.1);
+  color: var(--color-error);
+}
+
+.status-badge.status-assumption {
+  background-color: rgba(255, 176, 0, 0.1);
+  color: var(--color-warning);
+}
+
+/* Category Badge */
+.category-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-accent);
+  color: white;
+}
+
+.category-badge.financial {
+  background-color: #2E7D32;
+}
+
+.category-badge.market {
+  background-color: #1976D2;
+}
+
+.category-badge.operational {
+  background-color: #F57C00;
+}
+
+.category-badge.other {
+  background-color: var(--color-gray-500);
+}
+
+/* Loading Spinner */
+.spinner {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-gray-200);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-xxl);
+}
+
+/* Error Message */
+.error-message {
+  background-color: rgba(220, 20, 60, 0.1);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  color: var(--color-error);
+  margin: var(--spacing-md) 0;
+}
+
+/* Success Message */
+.success-message {
+  background-color: rgba(34, 139, 34, 0.1);
+  border: 1px solid var(--color-success);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  color: var(--color-success);
+  margin: var(--spacing-md) 0;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background-color: var(--color-gray-200);
+  margin: var(--spacing-xl) 0;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-xxl);
+  color: var(--color-gray-600);
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto var(--spacing-lg);
+  color: var(--color-gray-400);
+}
+</file>
+
+<file path="client/src/styles/globals.css">
+/* Global Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* The Economist Color Palette */
+  --color-primary: #E3120B;
+  --color-primary-dark: #C10E09;
+  --color-primary-light: rgba(227, 18, 11, 0.05);
+  --color-secondary: #2C2C2C;
+  --color-accent: #1B365D;
+  --color-accent-light: #2A4B7C;
+  --color-background: #FFFFFF;
+  --color-background-light: #F8F9FA;
+  --color-success: #228B22;
+  --color-warning: #FFB000;
+  --color-error: #DC143C;
+  --color-gray-100: #F8F9FA;
+  --color-gray-200: #E8E8E8;
+  --color-gray-300: #D3D3D3;
+  --color-gray-400: #A9A9A9;
+  --color-gray-500: #808080;
+  --color-gray-600: #666666;
+  --color-gray-700: #4A4A4A;
+  --color-red-50: rgba(220, 20, 60, 0.05);
+  --color-red-200: #FECACA;
+  --color-red-500: #EF4444;
+  --color-red-800: #991B1B;
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-medium: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--color-secondary);
+  background-color: var(--color-background);
+  line-height: 1.6;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-gray-100);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-gray-400);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gray-500);
+}
+
+/* Focus Styles */
+*:focus {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Selection Styles */
+::selection {
+  background-color: rgba(227, 18, 11, 0.2);
+  color: var(--color-secondary);
+}
+
+/* Container Styles */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+}
+
+/* Loading Spinner Keyframes */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Fade In Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Slide In Animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Utility Classes */
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.mt-lg { margin-top: var(--spacing-lg); }
+.mt-xl { margin-top: var(--spacing-xl); }
+
+.mb-sm { margin-bottom: var(--spacing-sm); }
+.mb-md { margin-bottom: var(--spacing-md); }
+.mb-lg { margin-bottom: var(--spacing-lg); }
+.mb-xl { margin-bottom: var(--spacing-xl); }
+
+.fade-in {
+  animation: fadeIn var(--transition-medium) ease-out;
+}
+
+.slide-in {
+  animation: slideIn var(--transition-slow) ease-out;
+}
+</file>
+
+<file path="client/src/styles/index.css">
+/* Sense Checkr - Main Stylesheet */
+
+/* Import base styles */
+@import './globals.css';
+@import './typography.css';
+@import './components.css';
+
+/* Component-specific styles */
+
+/* Header Component */
+.header {
+  background-color: white;
+  border-bottom: 2px solid var(--color-primary);
+  padding: var(--spacing-lg) 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-brand {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: bold;
+  color: var(--color-secondary);
+  margin: 0;
+}
+
+.brand-icon {
+  color: var(--color-primary);
+}
+
+.brand-subtitle {
+  font-size: 14px;
+  color: var(--color-gray-600);
+  margin: 4px 0 0 48px;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+}
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-medium);
+}
+
+.step.active {
+  background-color: var(--color-gray-100);
+}
+
+.step.completed .step-number {
+  color: var(--color-success);
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--color-gray-200);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all var(--transition-medium);
+}
+
+.step.active .step-number {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.step-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-secondary);
+}
+
+.step-connector {
+  width: 40px;
+  height: 2px;
+  background-color: var(--color-gray-300);
+}
+
+/* Loading Spinner */
+.spinner-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.spinner-message {
+  font-size: 16px;
+  color: var(--color-gray-600);
+  margin: 0;
+  animation: fadeIn var(--transition-medium) ease-out;
+}
+
+/* Error Boundary */
+.error-boundary {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  background-color: var(--color-background-light);
+}
+
+.error-boundary-content {
+  text-align: center;
+  max-width: 500px;
+  padding: var(--spacing-xl);
+  background-color: white;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.error-boundary-icon {
+  color: var(--color-error);
+  margin-bottom: var(--spacing-lg);
+}
+
+.error-boundary-message {
+  margin-bottom: var(--spacing-lg);
+  color: var(--color-gray-600);
+}
+
+.error-boundary-details {
+  margin: var(--spacing-lg) 0;
+  text-align: left;
+  padding: var(--spacing-md);
+  background-color: var(--color-gray-100);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+.error-boundary-details summary {
+  cursor: pointer;
+  font-weight: 500;
+  margin-bottom: var(--spacing-sm);
+}
+
+.error-boundary-details pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  color: var(--color-gray-700);
+}
+
+/* Memo Input */
+.memo-input-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--spacing-xl) 0;
+  animation: fadeIn var(--transition-medium) ease-out;
+}
+
+.memo-input-header {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.memo-form {
+  background-color: white;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+}
+
+.memo-textarea {
+  min-height: 400px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-sm);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-xl);
+}
+
+/* Claim Card */
+.claim-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-md);
+  gap: var(--spacing-md);
+}
+
+.claim-badges {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.claim-confidence {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 150px;
+}
+
+.confidence-bar {
+  flex: 1;
+  height: 6px;
+  background-color: var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.confidence-fill {
+  height: 100%;
+  background-color: var(--color-accent);
+  transition: width var(--transition-medium);
+}
+
+.confidence-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-gray-600);
+  min-width: 35px;
+  text-align: right;
+}
+
+.claim-content {
+  margin-bottom: var(--spacing-lg);
+}
+
+.claim-text {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-secondary);
+  margin: 0;
+}
+
+.claim-actions {
+  border-top: 1px solid var(--color-gray-200);
+  padding-top: var(--spacing-md);
+}
+
+.claim-actions .label {
+  margin-bottom: var(--spacing-sm);
+}
+
+.status-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.status-buttons .btn {
+  flex: 1;
+  min-width: 100px;
+}
+
+/* Verification Options */
+.verification-options {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-sm);
+}
+
+.verification-options .btn {
+  flex: 1;
+  min-width: 150px;
+}
+
+.verification-options .btn svg {
+  margin-right: var(--spacing-xs);
+}
+
+.verification-options .btn-loading .spinner {
+  animation: spin 1s linear infinite;
+}
+
+.verification-options .btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.verification-options .btn-active {
+  background-color: var(--color-gray-100);
+}
+
+/* Perplexity Results */
+.perplexity-results {
+  background-color: var(--color-gray-50);
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.perplexity-results.perplexity-true {
+  background-color: rgba(34, 139, 34, 0.05);
+  border-color: var(--color-success);
+}
+
+.perplexity-results.perplexity-false {
+  background-color: rgba(220, 20, 60, 0.05);
+  border-color: var(--color-error);
+}
+
+.perplexity-results.perplexity-partial {
+  background-color: rgba(255, 176, 0, 0.05);
+  border-color: var(--color-warning);
+}
+
+.perplexity-results.perplexity-context {
+  background-color: rgba(27, 54, 93, 0.05);
+  border-color: var(--color-accent);
+}
+
+.perplexity-results.perplexity-unknown {
+  background-color: var(--color-gray-50);
+  border-color: var(--color-gray-400);
+}
+
+.perplexity-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.perplexity-header svg {
+  color: var(--color-accent);
+}
+
+.perplexity-status {
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.perplexity-true .perplexity-status {
+  color: var(--color-success);
+}
+
+.perplexity-false .perplexity-status {
+  color: var(--color-error);
+}
+
+.perplexity-partial .perplexity-status {
+  color: var(--color-warning);
+}
+
+.perplexity-timestamp {
+  font-size: 12px;
+  color: var(--color-gray-500);
+  margin-left: auto;
+}
+
+.perplexity-reasoning {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.perplexity-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.sources-label {
+  font-size: 12px;
+  color: var(--color-gray-600);
+  margin-right: var(--spacing-xs);
+}
+
+.source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 12px;
+  color: var(--color-primary);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--color-primary);
+  padding-bottom: 2px;
+}
+
+.source-link:hover {
+  text-decoration: none;
+  border-bottom-style: solid;
+}
+
+.verification-error-message {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  background-color: rgba(220, 20, 60, 0.05);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+  font-size: 14px;
+  margin-top: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.verification-error-message svg {
+  color: var(--color-error);
+}
+
+/* Company Type Toggle Styles */
+.company-type-toggle {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-sm);
+}
+
+.radio-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border: 2px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.radio-option:hover {
+  border-color: var(--color-gray-300);
+  background-color: var(--color-gray-50);
+}
+
+.radio-option.active {
+  border-color: var(--color-primary);
+  background-color: rgba(227, 18, 11, 0.05);
+}
+
+.radio-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.radio-option svg {
+  color: var(--color-gray-600);
+  flex-shrink: 0;
+}
+
+.radio-option.active svg {
+  color: var(--color-primary);
+}
+
+.radio-label {
+  display: block;
+  font-weight: 600;
+  color: var(--color-secondary);
+  margin-bottom: 2px;
+}
+
+.radio-help {
+  display: block;
+  font-size: 13px;
+  color: var(--color-gray-600);
+}
+
+/* Claims List */
+.claims-list {
+  padding: var(--spacing-lg) 0;
+}
+
+.claims-category {
+  margin-bottom: var(--spacing-xxl);
+}
+
+.category-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-sm);
+}
+
+.category-count {
+  font-size: 16px;
+  font-weight: normal;
+  color: var(--color-gray-600);
+}
+
+.claims-grid {
+  display: grid;
+  gap: var(--spacing-lg);
+  grid-template-columns: 1fr;
+}
+
+/* Progress Indicator */
+.progress-indicator {
+  background-color: white;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--spacing-xl);
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--spacing-lg);
+}
+
+.processing-time {
+  font-size: 14px;
+  color: var(--color-gray-600);
+  margin: 0;
+}
+
+.progress-bar-container {
+  margin-bottom: var(--spacing-lg);
+}
+
+.progress-text {
+  margin-top: var(--spacing-sm);
+  font-size: 14px;
+  color: var(--color-gray-600);
+  text-align: center;
+}
+
+.status-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-gray-100);
+}
+
+.status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: white;
+}
+
+.status-icon.true {
+  background-color: var(--color-success);
+}
+
+.status-icon.false {
+  background-color: var(--color-error);
+}
+
+.status-icon.assumption {
+  background-color: var(--color-warning);
+}
+
+.status-icon.unverified {
+  background-color: var(--color-gray-400);
+}
+
+.status-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-secondary);
+}
+
+.status-count {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+/* Memo Highlighter */
+.memo-highlighter {
+  padding: var(--spacing-xl) 0;
+  animation: fadeIn var(--transition-medium) ease-out;
+}
+
+.highlighter-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.highlighter-content {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  gap: var(--spacing-xl);
+  align-items: start;
+}
+
+.memo-panel,
+.claims-panel {
+  height: 80vh;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+  background-color: white;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.panel-header {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+.memo-text-container {
+  padding-right: var(--spacing-md);
+}
+
+.memo-text {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--color-secondary);
+  white-space: pre-wrap;
+}
+
+.highlighted-claim {
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.highlighted-claim.status-unverified {
+  background-color: rgba(128, 128, 128, 0.1);
+  border-bottom: 2px solid var(--color-gray-400);
+}
+
+.highlighted-claim.status-true {
+  background-color: rgba(34, 139, 34, 0.1);
+  border-bottom: 2px solid var(--color-success);
+}
+
+.highlighted-claim.status-false {
+  background-color: rgba(220, 20, 60, 0.1);
+  border-bottom: 2px solid var(--color-error);
+}
+
+.highlighted-claim.status-assumption {
+  background-color: rgba(255, 176, 0, 0.1);
+  border-bottom: 2px solid var(--color-warning);
+}
+
+.highlighted-claim.hovered {
+  background-color: rgba(227, 18, 11, 0.2);
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Memo Panel Collapse Styles */
+.panel-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.collapse-toggle {
+  transition: transform var(--transition-fast);
+}
+
+.collapse-toggle:hover {
+  background-color: var(--color-gray-100);
+}
+
+/* Collapsed State */
+.highlighter-content {
+  transition: grid-template-columns var(--transition-medium) ease-in-out;
+}
+
+.highlighter-content.memo-collapsed {
+  grid-template-columns: auto 1fr;
+}
+
+.memo-panel {
+  transition: all var(--transition-medium) ease-in-out;
+  transform-origin: left center;
+}
+
+.memo-panel.collapsed {
+  width: 80px;
+  min-width: 80px;
+  padding: var(--spacing-md);
+  overflow: hidden;
+}
+
+.memo-panel.collapsed .panel-header {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.memo-panel.collapsed .headline-3 {
+  display: none;
+}
+
+.memo-panel.collapsed .collapse-toggle {
+  margin: 0 auto;
+  display: block;
+}
+
+/* Full width claims panel when memo is collapsed */
+.highlighter-content.memo-collapsed .claims-panel {
+  max-width: 100%;
+}
+
+/* Sticky Progress Indicator */
+.sticky-progress-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: white;
+  margin: calc(-1 * var(--spacing-lg)) calc(-1 * var(--spacing-lg)) 0 calc(-1 * var(--spacing-lg));
+  padding: 0;
+}
+
+/* Add shadow when scrolled */
+.claims-panel {
+  position: relative;
+}
+
+.sticky-progress-wrapper::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--color-gray-200);
+  z-index: 1;
+}
+
+.sticky-progress-wrapper .progress-indicator {
+  margin: 0;
+  border-radius: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+.claims-list-wrapper {
+  padding: var(--spacing-lg);
+  padding-top: var(--spacing-xl);
+}
+
+/* App Container */
+.app {
+  min-height: 100vh;
+  background-color: var(--color-background-light);
+}
+
+.main-content {
+  background-color: var(--color-background-light);
+  min-height: calc(100vh - 100px);
+}
+
+/* Responsive Styles */
+@media (max-width: 1200px) {
+  .claims-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .highlighter-content {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+  
+  /* Override collapsed state on tablets */
+  .highlighter-content.memo-collapsed {
+    grid-template-columns: 1fr;
+  }
+  
+  .memo-panel.collapsed {
+    width: 100%;
+    min-width: auto;
+    padding: var(--spacing-lg);
+  }
+  
+  .memo-panel.collapsed .headline-3 {
+    display: block;
+  }
+  
+  .memo-panel.collapsed .collapse-toggle {
+    margin: 0;
+    display: inline-flex;
+  }
+  
+  .memo-panel,
+  .claims-panel {
+    height: auto;
+    max-height: 600px;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+  
+  .brand-subtitle {
+    margin-left: 0;
+  }
+
+  .memo-input-container {
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+  
+  .memo-form {
+    padding: var(--spacing-lg);
+  }
+  
+  .memo-textarea {
+    min-height: 300px;
+  }
+  
+  .form-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .claim-header {
+    flex-direction: column;
+  }
+  
+  .claim-confidence {
+    width: 100%;
+  }
+  
+  .status-buttons {
+    flex-direction: column;
+  }
+  
+  .status-buttons .btn {
+    width: 100%;
+  }
+  
+  .verification-options {
+    flex-direction: column;
+  }
+  
+  .verification-options .btn {
+    width: 100%;
+  }
+  
+  .company-type-toggle {
+    flex-direction: column;
+  }
+
+  .claims-list {
+    padding: var(--spacing-md) 0;
+  }
+  
+  .claims-category {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .progress-header {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .status-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .highlighter-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .memo-panel,
+  .claims-panel {
+    padding: var(--spacing-md);
+  }
+  
+  /* Sticky progress adjustments for mobile */
+  .sticky-progress-wrapper {
+    margin: calc(-1 * var(--spacing-md)) calc(-1 * var(--spacing-md)) 0 calc(-1 * var(--spacing-md));
+    padding: 0;
+  }
+  
+  .claims-list-wrapper {
+    padding: var(--spacing-md);
+    padding-top: var(--spacing-lg);
+  }
+}
+</file>
+
+<file path="client/src/styles/typography.css">
+/* Typography System - The Economist Style */
+
+/* Headlines - Serif */
+.headline-1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 32px;
+  font-weight: bold;
+  line-height: 1.2;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.headline-2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 1.3;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.headline-3 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+/* Body Text - Sans-serif */
+.body-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-secondary);
+}
+
+.body-small {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-gray-600);
+}
+
+.body-large {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--color-secondary);
+}
+
+/* Special Text Styles */
+.caption {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-gray-600);
+  font-style: italic;
+}
+
+.label {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-gray-700);
+}
+
+.subtitle {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--color-gray-600);
+  font-weight: 400;
+}
+
+/* Links */
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-accent-light);
+  text-decoration: underline;
+}
+
+/* Emphasis */
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-secondary {
+  color: var(--color-secondary);
+}
+
+.text-accent {
+  color: var(--color-accent);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.text-warning {
+  color: var(--color-warning);
+}
+
+.text-error {
+  color: var(--color-error);
+}
+
+.text-muted {
+  color: var(--color-gray-600);
+}
+
+/* Font Weight Utilities */
+.font-light {
+  font-weight: 300;
+}
+
+.font-normal {
+  font-weight: 400;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+/* Text Alignment */
+.text-justify {
+  text-align: justify;
+}
+
+/* Line Height Utilities */
+.leading-tight {
+  line-height: 1.2;
+}
+
+.leading-normal {
+  line-height: 1.6;
+}
+
+.leading-relaxed {
+  line-height: 1.8;
+}
+
+/* Letter Spacing */
+.tracking-tight {
+  letter-spacing: -0.05em;
+}
+
+.tracking-normal {
+  letter-spacing: 0;
+}
+
+.tracking-wide {
+  letter-spacing: 0.05em;
+}
+
+/* Lists */
+ul, ol {
+  margin-left: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+li {
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Blockquote */
+blockquote {
+  border-left: 4px solid var(--color-primary);
+  padding-left: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+  font-style: italic;
+  color: var(--color-gray-700);
+}
+
+/* Code */
+code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  background-color: var(--color-gray-100);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+}
+
+pre {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  background-color: var(--color-gray-100);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  line-height: 1.5;
+  margin-bottom: var(--spacing-md);
+}
+</file>
+
+<file path="client/src/types/index.ts">
+export interface Claim {
+  id: string;
+  text: string;
+  status: 'unverified' | 'true' | 'false' | 'assumption';
+  category: 'financial' | 'market' | 'operational' | 'other';
+  confidence: number; // 1-10
+  range: [number, number]; // Character positions
+  verificationState?: 'idle' | 'verifying-perplexity' | 'verified-perplexity' | 'verification-error';
+}
+
+export interface PerplexityResult {
+  status: 'verified_true' | 'verified_false' | 'partially_true' | 'needs_context' | 'cannot_find_answer';
+  reasoning: string;
+  sources: string[];
+  confidence?: number;
+  searchQuery: string;
+  timestamp: string;
+}
+
+export interface AppState {
+  currentStep: 'input' | 'verify';
+  memoText: string;
+  claims: Claim[];
+  isLoading: boolean;
+  error: string | null;
+  processingTime: number | null;
+  companyType: 'external' | 'internal';
+  perplexityResults: Record<string, PerplexityResult>;
+}
+
+export type AppAction =
+  | { type: 'SET_STEP'; payload: 'input' | 'verify' }
+  | { type: 'SET_MEMO_TEXT'; payload: string }
+  | { type: 'SET_CLAIMS'; payload: Claim[] }
+  | { type: 'UPDATE_CLAIM_STATUS'; payload: { id: string; status: Claim['status'] } }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_PROCESSING_TIME'; payload: number }
+  | { type: 'SET_COMPANY_TYPE'; payload: 'external' | 'internal' }
+  | { type: 'SET_PERPLEXITY_RESULT'; payload: { claimId: string; result: PerplexityResult } }
+  | { type: 'SET_CLAIM_VERIFYING'; payload: { claimId: string; isVerifying: boolean } }
+  | { type: 'RESET' };
+
+export interface ClaimExtractionResponse {
+  claims: Claim[];
+  processingTime: number;
+  memoLength: number;
+  claimCount: number;
+}
+
+export interface SampleMemoResponse {
+  sampleMemo: string;
+  description: string;
+}
+</file>
+
+<file path="client/tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src"
+  ]
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "sense-checkr",
+  "version": "1.0.0",
+  "description": "Professional investment memo fact-checking tool",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm start",
+    "client": "cd client && npm start",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+</file>
+
+<file path="server/middleware/errorHandler.js">
+const errorHandler = (err, req, res, next) => {
+  // Log error for debugging
+  console.error(`Error: ${err.message}`);
+  console.error(err.stack);
+
+  // Default error status and message
+  let status = err.status || 500;
+  let message = err.message || 'Internal Server Error';
+
+  // Handle specific error types
+  if (err.name === 'ValidationError') {
+    status = 400;
+    message = 'Invalid request data';
+  } else if (err.name === 'UnauthorizedError') {
+    status = 401;
+    message = 'Unauthorized access';
+  } else if (err.name === 'RateLimitError') {
+    status = 429;
+    message = 'Too many requests';
+  } else if (err.isAxiosError) {
+    // Handle OpenRouter API errors
+    if (err.response) {
+      status = err.response.status;
+      message = err.response.data?.error?.message || 'External API error';
+    } else if (err.request) {
+      status = 503;
+      message = 'External service unavailable';
+    }
+  }
+
+  // Send error response
+  res.status(status).json({
+    error: {
+      message,
+      status,
+      timestamp: new Date().toISOString(),
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    }
+  });
+};
+
+module.exports = errorHandler;
+</file>
+
+<file path="server/package.json">
+{
+  "name": "sense-checkr-server",
+  "version": "1.0.0",
+  "description": "Backend server for Sense Checkr investment memo fact-checking",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.5",
+    "dotenv": "^16.3.1",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+</file>
+
+<file path="server/railway.json">
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "npm start",
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
+</file>
+
+<file path="server/render.yaml">
+services:
+  - type: web
+    name: sense-checkr-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://sense-checkr-kbftvijck-god-squad-589edc03.vercel.app
+      - key: OPENROUTER_API_KEY
+        sync: false
+</file>
+
+<file path="server/routes/api/claims.js">
+const express = require('express');
+const router = express.Router();
+const openRouterClient = require('../../utils/openrouter');
+
+// POST /api/claims/extract
+router.post('/extract', async (req, res, next) => {
+  try {
+    const { memoText } = req.body;
+
+    // Validate input
+    if (!memoText || typeof memoText !== 'string') {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: memoText is required and must be a string',
+          status: 400
+        }
+      });
+    }
+
+    // Check memo length
+    if (memoText.length < 50) {
+      return res.status(400).json({
+        error: {
+          message: 'Memo text is too short. Please provide at least 50 characters.',
+          status: 400
+        }
+      });
+    }
+
+    if (memoText.length > 20000) {
+      return res.status(400).json({
+        error: {
+          message: 'Memo text is too long. Maximum length is 20,000 characters.',
+          status: 400
+        }
+      });
+    }
+
+    // Log request
+    console.log(`Processing memo extraction request - Length: ${memoText.length} characters`);
+
+    // Extract claims using OpenRouter
+    const result = await openRouterClient.extractClaims(memoText);
+
+    // Log success
+    console.log(`Successfully extracted ${result.claims.length} claims in ${result.processingTime}ms`);
+
+    // Send response
+    res.json({
+      claims: result.claims,
+      processingTime: result.processingTime,
+      memoLength: memoText.length,
+      claimCount: result.claims.length
+    });
+
+  } catch (error) {
+    // Pass error to error handler middleware
+    next(error);
+  }
+});
+
+// POST /api/claims/verify
+router.post('/verify', async (req, res, next) => {
+  try {
+    const { claimText, memoText, companyType, claimId } = req.body;
+
+    // Validate input
+    if (!claimText || typeof claimText !== 'string') {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: claimText is required and must be a string',
+          status: 400
+        }
+      });
+    }
+
+    if (!memoText || typeof memoText !== 'string') {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: memoText is required and must be a string',
+          status: 400
+        }
+      });
+    }
+
+    if (!companyType || !['external', 'internal'].includes(companyType)) {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: companyType must be either "external" or "internal"',
+          status: 400
+        }
+      });
+    }
+
+    if (!claimId || typeof claimId !== 'string') {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: claimId is required and must be a string',
+          status: 400
+        }
+      });
+    }
+
+    // Log request
+    console.log(`Processing claim verification request - Claim ID: ${claimId}, Company Type: ${companyType}`);
+
+    const startTime = Date.now();
+
+    // Step 1: Preprocess the claim with Groq for context
+    const preprocessedData = await openRouterClient.preprocessClaimForSearch(claimText, memoText, companyType);
+
+    // Step 2: Verify the claim with Perplexity
+    const verificationResult = await openRouterClient.verifyClaimWithPerplexity(preprocessedData);
+
+    const processingTime = Date.now() - startTime;
+
+    // Log success
+    console.log(`Successfully verified claim ${claimId} in ${processingTime}ms - Result: ${verificationResult.status}`);
+
+    // Send response
+    res.json({
+      claimId,
+      verificationResult: {
+        ...verificationResult,
+        timestamp: new Date().toISOString()
+      },
+      processingTime
+    });
+
+  } catch (error) {
+    // Pass error to error handler middleware
+    next(error);
+  }
+});
+
+// GET /api/claims/sample
+router.get('/sample', (req, res) => {
+  const sampleMemo = `TechFlow Solutions represents a compelling investment opportunity in the enterprise workflow automation sector. The company achieved $47.2M in Annual Recurring Revenue (ARR) as of Q3 2024, demonstrating robust 156% year-over-year growth.
+
+The global market for workflow automation software is valued at $31.4B, with analysts projecting a compound annual growth rate of 28% through 2028. TechFlow has successfully captured 1,847 enterprise clients, maintaining an impressive average contract value of $25,600 annually.
+
+Financial performance metrics show strong unit economics: gross margins have expanded to 84% in the latest quarter, up from 78% in Q2 2024. The company maintains a healthy net revenue retention rate of 118%, while monthly logo churn has decreased to 1.8%, substantially below the SaaS industry benchmark of 3-5%.
+
+The competitive landscape includes established players like ServiceNow and newer entrants such as Zapier. TechFlow differentiates through its AI-powered process discovery engine, which reduces implementation time by 65% compared to traditional solutions. Customer satisfaction scores average 4.7/5.0, with 89% of users reporting significant productivity improvements.
+
+Looking forward, management projects reaching $100M ARR by Q4 2025, supported by a robust product roadmap including enhanced AI capabilities and vertical-specific solutions for healthcare and financial services. The company plans to expand its sales team from 45 to 120 representatives over the next 18 months.`;
+
+  res.json({
+    sampleMemo,
+    description: 'Sample investment memo for testing the fact-checking system'
+  });
+});
+
+module.exports = router;
+</file>
+
+<file path="server/utils/openrouter.js">
+const axios = require('axios');
+
+class OpenRouterClient {
+  constructor() {
+    this.apiKey = process.env.OPENROUTER_API_KEY;
+    this.baseURL = 'https://openrouter.ai/api/v1';
+    this.model = 'openai/gpt-4.1-mini';
+    this.groqModel = 'meta-llama/llama-4-maverick-17b-128e-instruct';
+    this.perplexityModel = 'perplexity/sonar-pro';
+    this.maxRetries = 3;
+    this.retryDelay = 1000; // Base delay in ms
+  }
+
+  async sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async makeRequest(messages, temperature = 0.7, model = null) {
+    const config = {
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
+        'X-Title': 'Sense Checkr'
+      }
+    };
+
+    const data = {
+      model: model || this.model,
+      messages,
+      temperature,
+      max_tokens: 4000
+    };
+
+    let lastError;
+    for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+      try {
+        console.log(`OpenRouter API call attempt ${attempt + 1}/${this.maxRetries} - Model: ${data.model}`);
+        const response = await axios.post(
+          `${this.baseURL}/chat/completions`,
+          data,
+          config
+        );
+        return response.data;
+      } catch (error) {
+        lastError = error;
+        console.error(`OpenRouter API error (attempt ${attempt + 1}):`, error.message);
+        
+        // Don't retry on client errors (4xx)
+        if (error.response && error.response.status < 500) {
+          throw error;
+        }
+        
+        // Wait before retrying with exponential backoff
+        if (attempt < this.maxRetries - 1) {
+          const delay = this.retryDelay * Math.pow(2, attempt);
+          console.log(`Retrying in ${delay}ms...`);
+          await this.sleep(delay);
+        }
+      }
+    }
+    
+    throw lastError;
+  }
+
+  async extractClaims(memoText) {
+    const systemPrompt = `You are a professional financial analyst assistant specializing in fact-checking investment memos. Your task is to extract factual claims from investment memos and categorize them.
+
+Extract claims that are:
+1. Specific, verifiable statements (numbers, dates, percentages, market sizes, etc.)
+2. Assumptions or projections stated as facts
+3. Company performance metrics
+4. Market positioning statements
+
+For each claim, provide:
+- text: The exact claim as stated in the memo
+- category: One of 'financial', 'market', 'operational', or 'other'
+- confidence: Your confidence in the categorization (1-10)
+- range: Character positions [start, end] where the claim appears
+
+Return a JSON array of claims. Be thorough but avoid duplicates.`;
+
+    const userPrompt = `Extract all factual claims from this investment memo:\n\n${memoText}`;
+
+    try {
+      const startTime = Date.now();
+      const response = await this.makeRequest([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ], 0.3); // Lower temperature for more consistent extraction
+
+      const processingTime = Date.now() - startTime;
+      
+      // Parse the response
+      const content = response.choices[0].message.content;
+      let claims;
+      
+      try {
+        // Try to extract JSON from the response
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          claims = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No JSON array found in response');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse claims:', parseError);
+        throw new Error('Failed to parse AI response');
+      }
+
+      // Add IDs and default status to claims
+      claims = claims.map((claim, index) => ({
+        id: `claim-${Date.now()}-${index}`,
+        status: 'unverified',
+        ...claim,
+        // Ensure range is provided, default to [0, 0] if not
+        range: claim.range || [0, 0]
+      }));
+
+      return {
+        claims,
+        processingTime
+      };
+    } catch (error) {
+      console.error('Error extracting claims:', error);
+      throw error;
+    }
+  }
+
+  async preprocessClaimForSearch(claimText, memoContext, companyType) {
+    const systemPrompt = `You are an expert at preparing factual claims for web search verification. Your task is to convert a claim from an investment memo into an effective search query and provide context for verification.
+
+Given a claim and its context, you must:
+1. Extract the key factual elements that need verification
+2. Create a clear, specific search query that will find relevant information
+3. Identify what type of information would verify or refute this claim
+4. Consider whether this is about an external company (publicly available info) or internal venture (likely limited public info)
+
+Return a JSON object with:
+- searchQuery: The optimized search query string
+- keyElements: Array of key facts to verify
+- verificationType: What kind of verification is needed (financial data, market size, company metrics, etc.)
+- expectedSources: Types of sources that would be authoritative
+- contextNotes: Any important context for interpreting results`;
+
+    const userPrompt = `Prepare this claim for verification:
+
+Claim: "${claimText}"
+
+Context from memo: "${memoContext.substring(0, 1000)}..."
+
+Company Type: ${companyType === 'internal' ? 'Internal Venture (limited public information expected)' : 'External Company (public information available)'}`;
+
+    try {
+      const response = await this.makeRequest([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ], 0.3, this.groqModel);
+
+      const content = response.choices[0].message.content;
+      
+      try {
+        // Extract JSON from response
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          return JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error('No JSON object found in response');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse preprocessing result:', parseError);
+        // Return a basic structure if parsing fails
+        return {
+          searchQuery: claimText,
+          keyElements: [claimText],
+          verificationType: 'general',
+          expectedSources: ['web'],
+          contextNotes: 'Direct claim search'
+        };
+      }
+    } catch (error) {
+      console.error('Error preprocessing claim:', error);
+      throw error;
+    }
+  }
+
+  async verifyClaimWithPerplexity(preprocessedData) {
+    const systemPrompt = `You are a fact-checking assistant with access to real-time web information. Your task is to verify investment memo claims by searching for relevant information and determining their accuracy.
+
+Based on your search results, classify the claim as one of:
+- verified_true: The claim is accurate based on found evidence
+- verified_false: The claim is inaccurate based on found evidence
+- partially_true: Some aspects are true, others are false or unverifiable
+- needs_context: The claim might be true but requires additional context or qualifications
+- cannot_find_answer: Unable to find relevant information to verify the claim
+
+Provide:
+1. A clear status determination
+2. A brief reasoning explaining your conclusion
+3. List of source URLs that support your conclusion
+4. Your confidence level (1-10)
+5. The exact search query you used`;
+
+    const userPrompt = `Verify this claim using web search:
+
+Search Query: "${preprocessedData.searchQuery}"
+
+Key Elements to Verify: ${preprocessedData.keyElements.join(', ')}
+
+Verification Type: ${preprocessedData.verificationType}
+
+Expected Sources: ${preprocessedData.expectedSources.join(', ')}
+
+Context Notes: ${preprocessedData.contextNotes}
+
+Please search for current information and provide your verification assessment.`;
+
+    try {
+      const response = await this.makeRequest([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ], 0.3, this.perplexityModel);
+
+      const content = response.choices[0].message.content;
+      
+      // Parse the response - Perplexity might return structured or unstructured content
+      let result;
+      
+      try {
+        // Try to extract JSON if present
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
+        } else {
+          // Parse unstructured response
+          result = this.parseUnstructuredVerification(content, preprocessedData.searchQuery);
+        }
+      } catch (parseError) {
+        console.error('Failed to parse verification result:', parseError);
+        result = {
+          status: 'cannot_find_answer',
+          reasoning: 'Failed to parse verification results',
+          sources: [],
+          confidence: 1,
+          searchQuery: preprocessedData.searchQuery
+        };
+      }
+
+      // Ensure all required fields are present
+      return {
+        status: result.status || 'cannot_find_answer',
+        reasoning: result.reasoning || 'No reasoning provided',
+        sources: result.sources || [],
+        confidence: result.confidence || 5,
+        searchQuery: result.searchQuery || preprocessedData.searchQuery
+      };
+    } catch (error) {
+      console.error('Error verifying claim with Perplexity:', error);
+      throw error;
+    }
+  }
+
+  parseUnstructuredVerification(content, searchQuery) {
+    // Basic parsing for unstructured responses
+    const lines = content.split('\n').filter(line => line.trim());
+    
+    let status = 'cannot_find_answer';
+    let reasoning = '';
+    const sources = [];
+    let confidence = 5;
+
+    // Look for status keywords
+    const statusKeywords = {
+      'verified_true': ['verified true', 'claim is true', 'accurate', 'correct', 'confirmed'],
+      'verified_false': ['verified false', 'claim is false', 'inaccurate', 'incorrect', 'refuted'],
+      'partially_true': ['partially true', 'partly accurate', 'mixed', 'some aspects true'],
+      'needs_context': ['needs context', 'requires context', 'depends', 'conditional'],
+      'cannot_find_answer': ['cannot find', 'no information', 'unable to verify', 'insufficient data']
+    };
+
+    const lowerContent = content.toLowerCase();
+    for (const [key, keywords] of Object.entries(statusKeywords)) {
+      if (keywords.some(keyword => lowerContent.includes(keyword))) {
+        status = key;
+        break;
+      }
+    }
+
+    // Extract reasoning (usually the main body)
+    reasoning = lines.filter(line => 
+      !line.startsWith('http') && 
+      !line.match(/^(source|confidence|status):/i)
+    ).join(' ').trim();
+
+    // Extract sources (URLs)
+    const urlRegex = /https?:\/\/[^\s]+/g;
+    const urls = content.match(urlRegex);
+    if (urls) {
+      sources.push(...urls);
+    }
+
+    // Extract confidence if mentioned
+    const confidenceMatch = content.match(/confidence:?\s*(\d+)/i);
+    if (confidenceMatch) {
+      confidence = parseInt(confidenceMatch[1], 10);
+    }
+
+    return {
+      status,
+      reasoning: reasoning || content.substring(0, 500),
+      sources,
+      confidence,
+      searchQuery
+    };
+  }
+}
+
+module.exports = new OpenRouterClient();
+</file>
+
+<file path="vercel.json">
+{
+  "buildCommand": "npm run install-all && npm run build",
+  "outputDirectory": "client/build",
+  "framework": "create-react-app",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+</file>
+
+<file path=".gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.vercel
+</file>
+
+<file path="README.md">
+# Sense Checkr - Professional Investment Memo Fact-Checking Tool
+
+A sophisticated B2B investment memo fact-checking application that helps financial analysts extract and verify factual claims from investment memos. Built with Node.js, React, and TypeScript, featuring an elegant design inspired by The Economist's clean, authoritative aesthetic.
+
+## Features
+
+- **AI-Powered Claim Extraction**: Automatically extracts factual claims from investment memos using OpenRouter API with GPT-4o-mini
+- **Professional UI**: Clean, newspaper-like layout with The Economist-inspired design
+- **Split-Screen Verification**: View original memo alongside extracted claims with synchronized highlighting
+- **Claim Categorization**: Automatic categorization into financial, market, operational, and other claims
+- **Real-time Progress Tracking**: Visual indicators for verification progress and status summaries
+- **Sample Memo**: Built-in realistic investment memo for testing
+
+## Tech Stack
+
+- **Backend**: Node.js + Express
+- **Frontend**: React 18 + TypeScript (Create React App)
+- **Styling**: CSS Modules with custom design system
+- **State Management**: React Context + useReducer
+- **Icons**: Lucide React
+- **LLM Integration**: OpenRouter API with GPT-4o-mini
+
+## Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn
+- OpenRouter API key
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd sense-checkr
+```
+
+2. Install dependencies:
+```bash
+npm run install-all
+```
+
+3. Create a `.env.local` file in the root directory with your OpenRouter API key:
+```env
+OPENROUTER_API_KEY=your_api_key_here
+```
+
+## Running the Application
+
+Development mode (runs both server and client):
+```bash
+npm run dev
+```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000
+
+## API Endpoints
+
+- `POST /api/claims/extract` - Extract claims from memo text
+- `GET /api/claims/sample` - Get sample investment memo
+- `GET /api/health` - Health check endpoint
+
+## Project Structure
+
+```
+sense-checkr/
+├── server/
+│   ├── routes/api/         # API route handlers
+│   ├── middleware/         # Express middleware
+│   ├── utils/              # Utility functions (OpenRouter client)
+│   └── server.js           # Express server setup
+├── client/
+│   ├── public/             # Static files
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── contexts/       # React Context providers
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── styles/         # CSS files
+│   │   ├── types/          # TypeScript interfaces
+│   │   └── App.tsx         # Main App component
+└── package.json            # Root package.json
+
+```
+
+## Design System
+
+The application uses a custom design system inspired by The Economist:
+
+### Colors
+- Primary: Deep red (#E3120B)
+- Secondary: Charcoal (#2C2C2C)
+- Accent: Navy blue (#1B365D)
+- Success: Forest green (#228B22)
+- Warning: Amber (#FFB000)
+- Error: Crimson (#DC143C)
+
+### Typography
+- Headlines: Georgia serif font
+- Body text: System sans-serif fonts
+- Professional hierarchy with clear visual distinction
+
+## Features in Detail
+
+### Memo Input
+- Large, professional textarea with character count
+- Sample memo button for quick testing
+- Validation for minimum/maximum length
+- Clear error messaging
+
+### Claim Verification Interface
+- Split-screen layout: 60% memo, 40% claims
+- Color-coded highlighting based on verification status
+- Hover interactions for claim synchronization
+- Progress indicators with statistics
+
+### Claim Cards
+- Status indicators (unverified, true, false, assumption)
+- Category badges with distinct colors
+- Confidence scores with visual bars
+- One-click status updates
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License.
+</file>
+
+<file path="server/server.js">
+// Load environment variables - try multiple paths for different deployment scenarios
+require('dotenv').config({ path: '../.env.local' });
+require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const errorHandler = require('./middleware/errorHandler');
+const claimsRouter = require('./routes/api/claims');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Security middleware
+app.use(helmet());
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL 
+    : 'http://localhost:3000',
+  credentials: true
+}));
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+
+// Apply rate limiting to API routes
+app.use('/api/', apiLimiter);
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// API routes
+app.use('/api/claims', claimsRouter);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
+
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Sense Checkr server running on port ${PORT}`);
+});
+</file>
+
+</files>

@@ -13,6 +13,8 @@ const initialState: AppState = {
   isLoading: false,
   error: null,
   processingTime: null,
+  companyType: 'external',
+  perplexityResults: {},
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -46,6 +48,33 @@ function appReducer(state: AppState, action: AppAction): AppState {
     
     case 'SET_PROCESSING_TIME':
       return { ...state, processingTime: action.payload };
+    
+    case 'SET_COMPANY_TYPE':
+      return { ...state, companyType: action.payload };
+    
+    case 'SET_PERPLEXITY_RESULT':
+      return {
+        ...state,
+        perplexityResults: {
+          ...state.perplexityResults,
+          [action.payload.claimId]: action.payload.result,
+        },
+      };
+    
+    case 'SET_CLAIM_VERIFYING':
+      return {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.claimId
+            ? {
+                ...claim,
+                verificationState: action.payload.isVerifying
+                  ? 'verifying-perplexity'
+                  : 'idle',
+              }
+            : claim
+        ),
+      };
     
     case 'RESET':
       return initialState;
