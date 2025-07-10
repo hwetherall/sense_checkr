@@ -900,6 +900,8 @@
   background-color: white;
   margin: calc(-1 * var(--spacing-lg)) calc(-1 * var(--spacing-lg)) 0 calc(-1 * var(--spacing-lg));
   padding: 0;
+  /* Add a small overlap to ensure no gap */
+  padding-bottom: 2px;
 }
 
 /* Add shadow when scrolled */
@@ -925,11 +927,13 @@
   border-top: none;
   border-left: none;
   border-right: none;
+  /* Ensure the background extends fully */
+  background-color: white;
 }
 
 .claims-list-wrapper {
   padding: var(--spacing-lg);
-  padding-top: var(--spacing-xl);
+  padding-top: 0;
 }
 
 /* App Container */
@@ -1082,6 +1086,6 @@
   
   .claims-list-wrapper {
     padding: var(--spacing-md);
-    padding-top: var(--spacing-lg);
+    padding-top: 0;
   }
 } 
