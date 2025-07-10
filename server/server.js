@@ -1,4 +1,7 @@
+// Load environment variables - try multiple paths for different deployment scenarios
 require('dotenv').config({ path: '../.env.local' });
+require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: '.env' });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -52,7 +55,6 @@ app.get('/api/health', (req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Sense Checkr server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-}); 
+});

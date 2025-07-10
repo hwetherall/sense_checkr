@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: sense-checkr-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://sense-checkr-kbftvijck-god-squad-589edc03.vercel.app
+      - key: OPENROUTER_API_KEY
+        sync: false 
