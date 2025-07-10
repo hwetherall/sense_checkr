@@ -4,7 +4,7 @@ class OpenRouterClient {
   constructor() {
     this.apiKey = process.env.OPENROUTER_API_KEY;
     this.baseURL = 'https://openrouter.ai/api/v1';
-    this.model = 'openai/gpt-4.1-mini';
+    this.model = 'meta-llama/llama-4-maverick-17b-128e-instruct';
     this.groqModel = 'meta-llama/llama-4-maverick-17b-128e-instruct';
     this.perplexityModel = 'perplexity/sonar-pro';
     this.maxRetries = 3;
@@ -29,7 +29,7 @@ class OpenRouterClient {
       model: model || this.model,
       messages,
       temperature,
-      max_tokens: 4000
+      max_tokens: 40000
     };
 
     let lastError;
@@ -64,35 +64,65 @@ class OpenRouterClient {
   }
 
   async extractClaims(memoText) {
-    const systemPrompt = `You are a professional financial analyst assistant specializing in fact-checking investment memos. Your task is to extract factual claims from investment memos and categorize them.
+    const systemPrompt = `You are a professional financial analyst assistant. Your ONLY task is to extract EXACTLY 10 claims - no more, no less.
 
-Extract claims that are:
-1. Specific, verifiable statements (numbers, dates, percentages, market sizes, etc.)
-2. Assumptions or projections stated as facts
-3. Company performance metrics
-4. Market positioning statements
+CRITICAL REQUIREMENT: You MUST return EXACTLY 10 claims. Not 11, not 37, not 50. EXACTLY 10.
 
-For each claim, provide:
-- text: The exact claim as stated in the memo
+These 10 claims should be the MOST CRITICAL "make or break" FACTUAL CLAIMS that would determine investment success or failure.
+
+WHAT TO EXTRACT (Good Examples):
+✅ "The total addressable market for quadruped robots is $1.5B in 2024, projected to reach $6.2B by 2033 with a CAGR of 17.2%"
+✅ "Boston Dynamics has deployed 1,500+ Spot units at $80k+ per unit, focusing on inspection and security sectors"
+✅ "Ghost Robotics Vision60 robots have IP67 rating, operate in -40°C to 60°C, with 180 min battery life and 10kg payload capacity"
+✅ "The company projects $84,700/year labor savings per construction site with positive ROI"
+✅ "Ghost Robotics has deployed 1,000+ units globally, primarily in government and military applications"
+
+WHAT NOT TO EXTRACT (Bad Examples):
+❌ "Pilot Deployments (Year 1): ≥5" (this is a target/milestone, not a factual claim)
+❌ "NPS ≥50" (this is a goal, not a current fact)
+❌ "TAM $7B" (too brief, lacks context and timeframe)
+❌ "Positive ROI" (vague, lacks specific metrics)
+❌ "Market leadership" (subjective, not quantifiable)
+
+FOCUS AREAS (in order of priority):
+1. **Current market data** - actual market sizes, growth rates with specific timeframes and sources
+2. **Competitive positioning** - specific metrics about competitors (units sold, pricing, market share)
+3. **Financial metrics** - concrete revenue figures, costs, margins, ROI calculations
+4. **Technical specifications** - measurable product capabilities, performance metrics
+5. **Operational data** - current deployment numbers, customer metrics, proven results
+
+CONTEXT REQUIREMENTS:
+- Include specific numbers, timeframes, and sources when mentioned
+- Provide enough detail for independent verification
+- Mention the subject clearly (don't just say "the market" - specify which market)
+- Include comparative context when relevant (vs competitors, industry benchmarks)
+
+For each of the EXACTLY 10 claims, provide:
+- text: The complete, contextual claim text (not just keywords)
 - category: One of 'financial', 'market', 'operational', or 'other'
-- confidence: Your confidence in the categorization (1-10)
-- range: Character positions [start, end] where the claim appears
+- confidence: 1-10 (how specific and verifiable the claim appears)
+- range: [start, end] character positions in the original text
+- importance: 1-10 (how critical to investment decision)
 
-Return a JSON array of claims. Be thorough but avoid duplicates.`;
+Return a JSON array with EXACTLY 10 items. Focus on FACTUAL CLAIMS with sufficient context for verification.`;
 
-    const userPrompt = `Extract all factual claims from this investment memo:\n\n${memoText}`;
+    const userPrompt = `Extract EXACTLY 10 most important factual claims from this memo. Remember: EXACTLY 10, not more, not less. Focus on verifiable facts with sufficient context:\n\n${memoText}`;
 
     try {
       const startTime = Date.now();
+      console.log('Requesting improved claim extraction...');
+      
       const response = await this.makeRequest([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
-      ], 0.3); // Lower temperature for more consistent extraction
+      ], 0.2); // Low temperature for consistent behavior
 
       const processingTime = Date.now() - startTime;
       
       // Parse the response
       const content = response.choices[0].message.content;
+      console.log('Raw AI response length:', content.length);
+      
       let claims;
       
       try {
@@ -100,6 +130,12 @@ Return a JSON array of claims. Be thorough but avoid duplicates.`;
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
           claims = JSON.parse(jsonMatch[0]);
+          console.log(`AI returned ${claims.length} claims`);
+          
+          // Log claim quality for debugging
+          claims.forEach((claim, index) => {
+            console.log(`Claim ${index + 1}: "${claim.text}" (${claim.category}, confidence: ${claim.confidence})`);
+          });
         } else {
           throw new Error('No JSON array found in response');
         }
@@ -108,14 +144,38 @@ Return a JSON array of claims. Be thorough but avoid duplicates.`;
         throw new Error('Failed to parse AI response');
       }
 
+      // AGGRESSIVE ENFORCEMENT: Absolutely ensure we have exactly 10 claims
+      if (claims.length > 10) {
+        console.warn(`AI returned ${claims.length} claims despite instructions. Forcefully limiting to 10.`);
+        
+        // Sort by importance if available, otherwise just take first 10
+        if (claims[0]?.importance !== undefined) {
+          claims.sort((a, b) => (b.importance || 5) - (a.importance || 5));
+        }
+        
+        claims = claims.slice(0, 10);
+      } else if (claims.length < 10) {
+        console.warn(`AI returned only ${claims.length} claims. Requested 10.`);
+      }
+
       // Add IDs and default status to claims
       claims = claims.map((claim, index) => ({
         id: `claim-${Date.now()}-${index}`,
         status: 'unverified',
         ...claim,
         // Ensure range is provided, default to [0, 0] if not
-        range: claim.range || [0, 0]
+        range: claim.range || [0, 0],
+        // Ensure importance is provided
+        importance: claim.importance || 5
       }));
+
+      // FINAL CHECK - This should never happen but just in case
+      if (claims.length > 10) {
+        console.error('CRITICAL: Still have more than 10 claims after all processing!');
+        claims = claims.slice(0, 10);
+      }
+
+      console.log(`Successfully extracted ${claims.length} contextual factual claims`);
 
       return {
         claims,

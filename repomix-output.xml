@@ -55,10 +55,14 @@ client/src/components/claims/ProgressIndicator.tsx
 client/src/components/common/ErrorBoundary.tsx
 client/src/components/common/Header.tsx
 client/src/components/common/LoadingSpinner.tsx
+client/src/components/documents/DocumentRepository.tsx
+client/src/components/documents/DocumentUpload.tsx
 client/src/components/memo/MemoHighlighter.tsx
 client/src/components/memo/MemoInput.tsx
 client/src/contexts/AppContext.tsx
 client/src/hooks/useClaimExtraction.ts
+client/src/hooks/useDocumentManagement.ts
+client/src/hooks/useDocumentVerification.ts
 client/src/hooks/usePerplexityVerification.ts
 client/src/index.tsx
 client/src/react-app-env.d.ts
@@ -77,7 +81,9 @@ server/package.json
 server/railway.json
 server/render.yaml
 server/routes/api/claims.js
+server/routes/api/documents.js
 server/server.js
+server/utils/documentProcessor.js
 server/utils/openrouter.js
 vercel.json
 </directory_structure>
@@ -109,56 +115,6 @@ This section contains the contents of the repository's files.
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-</file>
-
-<file path="client/package.json">
-{
-  "name": "client",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^27.5.2",
-    "@types/node": "^16.18.126",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
-    "axios": "^1.10.0",
-    "lucide-react": "^0.525.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-scripts": "5.0.1",
-    "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "proxy": "http://localhost:5000",
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  }
-}
 </file>
 
 <file path="client/public/index.html">
@@ -772,6 +728,216 @@ const styles = `
 export const loadingSpinnerStyles = styles;
 </file>
 
+<file path="client/src/components/documents/DocumentRepository.tsx">
+import React, { useEffect, useState } from 'react';
+import { FileText, X, ChevronDown, ChevronUp, File } from 'lucide-react';
+import { DocumentUpload } from './DocumentUpload';
+import { useDocumentManagement } from '../../hooks/useDocumentManagement';
+import { Document } from '../../types';
+
+export function DocumentRepository() {
+  const { documents, fetchDocuments, deleteDocument } = useDocumentManagement();
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch documents on mount
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  const handleDelete = async (documentId: string) => {
+    setDeletingId(documentId);
+    await deleteDocument(documentId);
+    setDeletingId(null);
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType === 'pdf') {
+      return <FileText size={16} className="file-icon pdf" />;
+    }
+    return <File size={16} className="file-icon excel" />;
+  };
+
+  const formatUploadTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  return (
+    <div className="document-repository">
+      <div className="repository-header">
+        <div className="header-content">
+          <h3>Document Repository</h3>
+          <span className="document-count">{documents.length} / 5 documents</span>
+        </div>
+        <button
+          className="btn btn-sm btn-ghost toggle-btn"
+          onClick={() => setIsExpanded(!isExpanded)}
+          aria-label={isExpanded ? 'Collapse' : 'Expand'}
+        >
+          {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="repository-content">
+          <DocumentUpload />
+
+          {documents.length > 0 && (
+            <div className="document-list">
+              <h4>Uploaded Documents</h4>
+              {documents.map((doc: Document) => (
+                <div key={doc.id} className="document-item">
+                  <div className="document-info">
+                    {getFileIcon(doc.fileType)}
+                    <div className="document-details">
+                      <span className="document-name">{doc.fileName}</span>
+                      <span className="document-meta">
+                        {doc.chunkCount} chunks • {formatUploadTime(doc.uploadTime)}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    className={`btn btn-sm btn-ghost delete-btn ${deletingId === doc.id ? 'deleting' : ''}`}
+                    onClick={() => handleDelete(doc.id)}
+                    disabled={deletingId === doc.id}
+                    aria-label="Delete document"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {documents.length === 0 && (
+            <div className="empty-state">
+              <p>No documents uploaded yet</p>
+              <p className="empty-hint">Upload Excel or PDF files to verify claims against them</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/components/documents/DocumentUpload.tsx">
+import React, { useState, useRef, DragEvent } from 'react';
+import { Upload, AlertCircle } from 'lucide-react';
+import { useDocumentManagement } from '../../hooks/useDocumentManagement';
+
+export function DocumentUpload() {
+  const { uploadDocuments, validateFiles, isUploading, uploadError } = useDocumentManagement();
+  const [dragActive, setDragActive] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleDrag = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    if (e.target.files && e.target.files[0]) {
+      handleFiles(Array.from(e.target.files));
+    }
+  };
+
+  const handleFiles = async (files: File[]) => {
+    setValidationError(null);
+    
+    // Validate files
+    const validation = validateFiles(files);
+    if (!validation.valid) {
+      setValidationError(validation.error || 'Invalid files');
+      return;
+    }
+
+    // Upload files
+    await uploadDocuments(files);
+    
+    // Clear the input
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
+  };
+
+  const onButtonClick = () => {
+    inputRef.current?.click();
+  };
+
+  const displayError = validationError || uploadError;
+
+  return (
+    <div className="document-upload">
+      <form onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
+        <input
+          ref={inputRef}
+          type="file"
+          id="file-input"
+          multiple
+          accept=".xlsx,.xls,.pdf"
+          onChange={handleChange}
+          style={{ display: 'none' }}
+        />
+        
+        <label
+          htmlFor="file-input"
+          className={`upload-area ${dragActive ? 'drag-active' : ''} ${isUploading ? 'uploading' : ''}`}
+        >
+          <div
+            className="upload-content"
+            onClick={onButtonClick}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <Upload size={24} />
+            <p className="upload-text">
+              {isUploading ? 'Uploading...' : 'Drop files here or click to upload'}
+            </p>
+            <p className="upload-hint">
+              Excel (.xlsx, .xls) and PDF files only • Max 5 files • 10MB per file
+            </p>
+          </div>
+        </label>
+      </form>
+
+      {displayError && (
+        <div className="upload-error">
+          <AlertCircle size={16} />
+          <span>{displayError}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
 <file path="client/src/hooks/useClaimExtraction.ts">
 import { useState, useCallback } from 'react';
 import axios from 'axios';
@@ -857,74 +1023,219 @@ export function useClaimExtraction() {
 }
 </file>
 
-<file path="client/src/hooks/usePerplexityVerification.ts">
+<file path="client/src/hooks/useDocumentManagement.ts">
+import { useCallback, useState } from 'react';
+import { useApp } from '../contexts/AppContext';
+import { Document } from '../types';
+
+export function useDocumentManagement() {
+  const { state, dispatch } = useApp();
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const uploadDocuments = useCallback(async (files: File[]) => {
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append('documents', file);
+      });
+
+      const response = await fetch('/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      if (data.documents && data.documents.length > 0) {
+        // Add new documents to state
+        data.documents.forEach((doc: Document) => {
+          dispatch({ type: 'ADD_DOCUMENT', payload: doc });
+        });
+      }
+
+      if (data.errors && data.errors.length > 0) {
+        const errorMessage = data.errors.map((e: any) => `${e.fileName}: ${e.error}`).join('\n');
+        setUploadError(errorMessage);
+      }
+
+      return {
+        success: true,
+        documents: data.documents,
+        errors: data.errors,
+      };
+    } catch (error) {
+      console.error('Document upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload documents';
+      setUploadError(errorMessage);
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    } finally {
+      setIsUploading(false);
+    }
+  }, [dispatch]);
+
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const response = await fetch('/api/documents');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch documents');
+      }
+
+      dispatch({ type: 'SET_DOCUMENTS', payload: data.documents });
+      return data.documents;
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to load documents' });
+      return [];
+    }
+  }, [dispatch]);
+
+  const deleteDocument = useCallback(async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete document');
+      }
+
+      dispatch({ type: 'REMOVE_DOCUMENT', payload: documentId });
+      return true;
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete document';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      return false;
+    }
+  }, [dispatch]);
+
+  const validateFiles = useCallback((files: File[]): { valid: boolean; error?: string } => {
+    // Check file count
+    const currentCount = state.documents.length;
+    if (currentCount + files.length > 5) {
+      return {
+        valid: false,
+        error: `Maximum 5 documents allowed. You can upload ${5 - currentCount} more document(s).`,
+      };
+    }
+
+    // Check file types
+    const allowedExtensions = ['.xlsx', '.xls', '.pdf'];
+    for (const file of files) {
+      const extension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0];
+      if (!extension || !allowedExtensions.includes(extension)) {
+        return {
+          valid: false,
+          error: `Invalid file type: ${file.name}. Only Excel (.xlsx, .xls) and PDF files are allowed.`,
+        };
+      }
+    }
+
+    // Check file sizes (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    for (const file of files) {
+      if (file.size > maxSize) {
+        return {
+          valid: false,
+          error: `File too large: ${file.name}. Maximum file size is 10MB.`,
+        };
+      }
+    }
+
+    return { valid: true };
+  }, [state.documents.length]);
+
+  return {
+    documents: state.documents,
+    isUploading,
+    uploadError,
+    uploadDocuments,
+    fetchDocuments,
+    deleteDocument,
+    validateFiles,
+  };
+}
+</file>
+
+<file path="client/src/hooks/useDocumentVerification.ts">
 import { useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { PerplexityResult } from '../types';
+import { DocumentVerificationResult } from '../types';
 
-export function usePerplexityVerification() {
+export function useDocumentVerification() {
   const { state, dispatch } = useApp();
 
-  const verifyClaimWithPerplexity = useCallback(
+  const verifyClaimWithDocuments = useCallback(
     async (claimId: string) => {
-      console.log('Starting verification for claim:', claimId);
+      console.log('Starting document verification for claim:', claimId);
       
       const claim = state.claims.find(c => c.id === claimId);
       if (!claim) {
         console.error('Claim not found:', claimId);
         return;
       }
-      console.log('Found claim:', claim);
+
+      // Check if documents are available
+      if (state.documents.length === 0) {
+        dispatch({
+          type: 'SET_ERROR',
+          payload: 'No documents available for verification. Please upload documents first.',
+        });
+        return;
+      }
 
       // Set verifying state
-      console.log('Dispatching SET_CLAIM_VERIFYING...');
-      dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: true } });
+      dispatch({ 
+        type: 'SET_CLAIM_VERIFYING', 
+        payload: { claimId, isVerifying: true, verificationType: 'document' } 
+      });
 
       try {
-        console.log('Making API request with data:', {
-          claimText: claim.text,
-          memoText: state.memoText.substring(0, 100) + '...',
-          companyType: state.companyType,
-          claimId: claim.id,
-        });
-        
-        const response = await fetch('/api/claims/verify', {
+        const response = await fetch('/api/documents/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             claimText: claim.text,
-            memoText: state.memoText,
-            companyType: state.companyType,
             claimId: claim.id,
           }),
         });
-        
-        console.log('API response status:', response.status);
 
         if (!response.ok) {
           const errorData = await response.json();
-          console.error('API error response:', errorData);
-          throw new Error(errorData.error?.message || 'Verification failed');
+          throw new Error(errorData.error?.message || 'Document verification failed');
         }
 
         const data = await response.json();
-        console.log('Verification API response:', data);
+        console.log('Document verification response:', data);
         
-        // Update claim with verification result and mark as verified
+        // Update claim with verification result
         dispatch({
-          type: 'SET_CLAIM_VERIFIED',
+          type: 'SET_CLAIM_DOCUMENT_VERIFIED',
           payload: {
             claimId,
             result: data.verificationResult,
           },
         });
-        console.log('Dispatched SET_CLAIM_VERIFIED for claim:', claimId);
 
       } catch (error) {
-        console.error('Perplexity verification error:', error);
+        console.error('Document verification error:', error);
         
-        // Update claim state to show error and set error message
-        const errorMessage = error instanceof Error ? error.message : 'Verification failed';
+        const errorMessage = error instanceof Error ? error.message : 'Document verification failed';
         dispatch({
           type: 'SET_CLAIM_VERIFICATION_ERROR',
           payload: {
@@ -934,32 +1245,44 @@ export function usePerplexityVerification() {
         });
       } finally {
         // Clear verifying state
-        console.log('Clearing verifying state...');
-        dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: false } });
+        dispatch({ 
+          type: 'SET_CLAIM_VERIFYING', 
+          payload: { claimId, isVerifying: false, verificationType: 'document' } 
+        });
       }
     },
-    [state.claims, state.memoText, state.companyType, dispatch]
+    [state.claims, state.documents, dispatch]
   );
 
-  const getPerplexityResult = useCallback(
-    (claimId: string): PerplexityResult | undefined => {
-      return state.perplexityResults[claimId];
+  const getDocumentVerificationResult = useCallback(
+    (claimId: string): DocumentVerificationResult | undefined => {
+      return state.documentVerificationResults[claimId];
     },
-    [state.perplexityResults]
+    [state.documentVerificationResults]
   );
 
-  const isVerifyingClaim = useCallback(
+  const isVerifyingClaimWithDocuments = useCallback(
     (claimId: string): boolean => {
       const claim = state.claims.find(c => c.id === claimId);
-      return claim?.verificationState === 'verifying-perplexity' || false;
+      return claim?.verificationState === 'verifying-document' || false;
     },
     [state.claims]
   );
 
+  const hasDocumentVerificationResult = useCallback(
+    (claimId: string): boolean => {
+      const claim = state.claims.find(c => c.id === claimId);
+      return claim?.verificationState === 'verified-document' && !!state.documentVerificationResults[claimId];
+    },
+    [state.claims, state.documentVerificationResults]
+  );
+
   return {
-    verifyClaimWithPerplexity,
-    getPerplexityResult,
-    isVerifyingClaim,
+    verifyClaimWithDocuments,
+    getDocumentVerificationResult,
+    isVerifyingClaimWithDocuments,
+    hasDocumentVerificationResult,
+    hasDocuments: state.documents.length > 0,
   };
 }
 </file>
@@ -1013,6 +1336,1067 @@ export default reportWebVitals;
 // expect(element).toHaveTextContent(/react/i)
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
+</file>
+
+<file path="client/src/styles/typography.css">
+/* Typography System - The Economist Style */
+
+/* Headlines - Serif */
+.headline-1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 32px;
+  font-weight: bold;
+  line-height: 1.2;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+
+.headline-2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 1.3;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.headline-3 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+/* Body Text - Sans-serif */
+.body-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-secondary);
+}
+
+.body-small {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-gray-600);
+}
+
+.body-large {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--color-secondary);
+}
+
+/* Special Text Styles */
+.caption {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-gray-600);
+  font-style: italic;
+}
+
+.label {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-gray-700);
+}
+
+.subtitle {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--color-gray-600);
+  font-weight: 400;
+}
+
+/* Links */
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-accent-light);
+  text-decoration: underline;
+}
+
+/* Emphasis */
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-secondary {
+  color: var(--color-secondary);
+}
+
+.text-accent {
+  color: var(--color-accent);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.text-warning {
+  color: var(--color-warning);
+}
+
+.text-error {
+  color: var(--color-error);
+}
+
+.text-muted {
+  color: var(--color-gray-600);
+}
+
+/* Font Weight Utilities */
+.font-light {
+  font-weight: 300;
+}
+
+.font-normal {
+  font-weight: 400;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+/* Text Alignment */
+.text-justify {
+  text-align: justify;
+}
+
+/* Line Height Utilities */
+.leading-tight {
+  line-height: 1.2;
+}
+
+.leading-normal {
+  line-height: 1.6;
+}
+
+.leading-relaxed {
+  line-height: 1.8;
+}
+
+/* Letter Spacing */
+.tracking-tight {
+  letter-spacing: -0.05em;
+}
+
+.tracking-normal {
+  letter-spacing: 0;
+}
+
+.tracking-wide {
+  letter-spacing: 0.05em;
+}
+
+/* Lists */
+ul, ol {
+  margin-left: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+li {
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Blockquote */
+blockquote {
+  border-left: 4px solid var(--color-primary);
+  padding-left: var(--spacing-lg);
+  margin: var(--spacing-lg) 0;
+  font-style: italic;
+  color: var(--color-gray-700);
+}
+
+/* Code */
+code {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  background-color: var(--color-gray-100);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+}
+
+pre {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  background-color: var(--color-gray-100);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  line-height: 1.5;
+  margin-bottom: var(--spacing-md);
+}
+</file>
+
+<file path="client/tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src"
+  ]
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "sense-checkr",
+  "version": "1.0.0",
+  "description": "Professional investment memo fact-checking tool",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm start",
+    "client": "cd client && npm start",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+</file>
+
+<file path="server/middleware/errorHandler.js">
+const errorHandler = (err, req, res, next) => {
+  // Log error for debugging
+  console.error(`Error: ${err.message}`);
+  console.error(err.stack);
+
+  // Default error status and message
+  let status = err.status || 500;
+  let message = err.message || 'Internal Server Error';
+
+  // Handle specific error types
+  if (err.name === 'ValidationError') {
+    status = 400;
+    message = 'Invalid request data';
+  } else if (err.name === 'UnauthorizedError') {
+    status = 401;
+    message = 'Unauthorized access';
+  } else if (err.name === 'RateLimitError') {
+    status = 429;
+    message = 'Too many requests';
+  } else if (err.isAxiosError) {
+    // Handle OpenRouter API errors
+    if (err.response) {
+      status = err.response.status;
+      message = err.response.data?.error?.message || 'External API error';
+    } else if (err.request) {
+      status = 503;
+      message = 'External service unavailable';
+    }
+  }
+
+  // Send error response
+  res.status(status).json({
+    error: {
+      message,
+      status,
+      timestamp: new Date().toISOString(),
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    }
+  });
+};
+
+module.exports = errorHandler;
+</file>
+
+<file path="server/railway.json">
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "npm start",
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
+</file>
+
+<file path="server/render.yaml">
+services:
+  - type: web
+    name: sense-checkr-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://sense-checkr-kbftvijck-god-squad-589edc03.vercel.app
+      - key: OPENROUTER_API_KEY
+        sync: false
+</file>
+
+<file path="server/routes/api/documents.js">
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
+const documentProcessor = require('../../utils/documentProcessor');
+const openrouterClient = require('../../utils/openrouter');
+
+const router = express.Router();
+
+// Test endpoint
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Documents API is working',
+    uploadDir: uploadDir,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, '../../uploads');
+fs.mkdir(uploadDir, { recursive: true }).catch(console.error);
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 5 // Maximum 5 files
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['.xlsx', '.xls', '.pdf'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    
+    if (allowedTypes.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type. Only Excel (.xlsx, .xls) and PDF files are allowed.`));
+    }
+  }
+});
+
+// Upload documents
+router.post('/upload', (req, res, next) => {
+  upload.array('documents', 5)(req, res, (err) => {
+    if (err) {
+      console.error('Multer error:', err);
+      
+      // Handle multer-specific errors
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+        } else if (err.code === 'LIMIT_FILE_COUNT') {
+          return res.status(400).json({ error: 'Too many files. Maximum 5 files allowed.' });
+        } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+          return res.status(400).json({ error: 'Unexpected field name. Use "documents" for file uploads.' });
+        }
+      } else if (err) {
+        // Handle custom errors (file type validation)
+        return res.status(400).json({ error: err.message });
+      }
+      
+      // If no error, continue to the actual upload handler
+      handleUpload(req, res, next);
+    } else {
+      handleUpload(req, res, next);
+    }
+  });
+});
+
+// Actual upload handler
+async function handleUpload(req, res, next) {
+  try {
+    console.log('Document upload request received');
+    console.log('Files received:', req.files?.length || 0);
+    console.log('Request headers:', req.headers);
+    
+    if (!req.files || req.files.length === 0) {
+      console.log('No files in request');
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    // Check current document count
+    const currentDocs = documentProcessor.getAllDocuments();
+    if (currentDocs.length + req.files.length > 5) {
+      // Clean up uploaded files
+      for (const file of req.files) {
+        await fs.unlink(file.path).catch(console.error);
+      }
+      return res.status(400).json({ 
+        error: 'Maximum 5 documents allowed. Please delete some documents first.' 
+      });
+    }
+
+    const processedDocuments = [];
+    const errors = [];
+
+    for (const file of req.files) {
+      try {
+        const ext = path.extname(file.originalname).toLowerCase();
+        const fileType = ext === '.pdf' ? 'pdf' : 'excel';
+        
+        console.log(`Processing ${fileType} file: ${file.originalname}`);
+        
+        const document = await documentProcessor.processDocument(
+          file.path,
+          file.originalname,
+          fileType
+        );
+        
+        processedDocuments.push(document);
+        console.log(`Successfully processed ${file.originalname}`);
+      } catch (error) {
+        console.error(`Error processing ${file.originalname}:`, error);
+        errors.push({
+          fileName: file.originalname,
+          error: error.message
+        });
+        // Clean up failed file
+        await fs.unlink(file.path).catch(console.error);
+      }
+    }
+
+    res.json({
+      success: true,
+      documents: processedDocuments.map(doc => ({
+        id: doc.id,
+        fileName: doc.fileName,
+        fileType: doc.fileType,
+        uploadTime: doc.uploadTime,
+        processed: doc.processed,
+        chunkCount: doc.chunkCount
+      })),
+      errors: errors.length > 0 ? errors : undefined,
+      totalDocuments: documentProcessor.getAllDocuments().length
+    });
+
+  } catch (error) {
+    console.error('Upload error:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Clean up any uploaded files on error
+    if (req.files) {
+      for (const file of req.files) {
+        await fs.unlink(file.path).catch(console.error);
+      }
+    }
+    
+    next(error);
+  }
+}
+
+// List all documents
+router.get('/', async (req, res) => {
+  try {
+    const documents = documentProcessor.getAllDocuments();
+    res.json({
+      success: true,
+      documents,
+      totalDocuments: documents.length
+    });
+  } catch (error) {
+    console.error('Error listing documents:', error);
+    res.status(500).json({ error: 'Failed to list documents' });
+  }
+});
+
+// Delete a document
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const document = documentProcessor.getDocument(id);
+    
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    
+    // Delete from processor
+    const deleted = documentProcessor.deleteDocument(id);
+    
+    if (deleted) {
+      // Try to delete the physical file
+      const files = await fs.readdir(uploadDir);
+      
+      for (const file of files) {
+        if (file.includes(document.fileName)) {
+          await fs.unlink(path.join(uploadDir, file)).catch(console.error);
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: 'Document deleted successfully',
+        totalDocuments: documentProcessor.getAllDocuments().length
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to delete document' });
+    }
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({ error: 'Failed to delete document' });
+  }
+});
+
+// Verify claim against documents
+router.post('/verify', async (req, res, next) => {
+  try {
+    const { claimText, claimId } = req.body;
+    
+    if (!claimText) {
+      return res.status(400).json({ error: 'Claim text is required' });
+    }
+    
+    console.log('Document verification request:', { claimText, claimId });
+    
+    // Get all document chunks
+    const allChunks = documentProcessor.getAllChunks();
+    
+    if (allChunks.length === 0) {
+      return res.json({
+        verificationResult: {
+          status: 'not_found',
+          reasoning: 'No documents available for verification.',
+          citations: [],
+          confidence: 0,
+          searchQuery: claimText,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+    
+    console.log(`Searching through ${allChunks.length} chunks`);
+    
+    // Verify with AI
+    const verificationResult = await openrouterClient.verifyClaimWithDocuments(
+      claimText,
+      allChunks
+    );
+    
+    res.json({
+      verificationResult: {
+        ...verificationResult,
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('Document verification error:', error);
+    next(error);
+  }
+});
+
+// Search documents
+router.post('/search', async (req, res) => {
+  try {
+    const { query } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+    
+    const results = documentProcessor.searchChunks(query);
+    
+    res.json({
+      success: true,
+      results: results.slice(0, 10), // Limit to 10 results
+      totalResults: results.length
+    });
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+module.exports = router;
+</file>
+
+<file path="server/utils/documentProcessor.js">
+const XLSX = require('xlsx');
+const pdfParse = require('pdf-parse');
+const fs = require('fs').promises;
+const path = require('path');
+
+class DocumentProcessor {
+  constructor() {
+    this.documents = new Map(); // In-memory storage for processed documents
+    this.chunkSize = 800; // Characters per chunk
+  }
+
+  async processDocument(filePath, fileName, fileType) {
+    try {
+      let chunks = [];
+      const documentId = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+      if (fileType === 'excel') {
+        chunks = await this.processExcel(filePath, fileName);
+      } else if (fileType === 'pdf') {
+        chunks = await this.processPDF(filePath, fileName);
+      }
+
+      // Store document metadata and chunks
+      const document = {
+        id: documentId,
+        fileName,
+        fileType,
+        uploadTime: new Date().toISOString(),
+        processed: true,
+        chunks,
+        chunkCount: chunks.length
+      };
+
+      this.documents.set(documentId, document);
+      
+      return document;
+    } catch (error) {
+      console.error('Error processing document:', error);
+      throw new Error(`Failed to process ${fileType} file: ${error.message}`);
+    }
+  }
+
+  async processExcel(filePath, fileName) {
+    const chunks = [];
+    
+    try {
+      const workbook = XLSX.readFile(filePath);
+      
+      // Process each sheet
+      for (const sheetName of workbook.SheetNames) {
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // Get range of cells
+        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+        
+        // Extract data by rows for better context
+        let currentChunk = {
+          content: '',
+          metadata: {
+            fileName,
+            sheetName,
+            cellRange: '',
+            type: 'excel'
+          }
+        };
+        
+        for (let row = range.s.r; row <= range.e.r; row++) {
+          let rowContent = [];
+          let cellRefs = [];
+          
+          for (let col = range.s.c; col <= range.e.c; col++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+            const cell = worksheet[cellAddress];
+            
+            if (cell) {
+              const value = cell.v !== undefined ? String(cell.v) : '';
+              if (value.trim()) {
+                rowContent.push(value);
+                cellRefs.push(cellAddress);
+              }
+            }
+          }
+          
+          if (rowContent.length > 0) {
+            const rowText = rowContent.join(' | ') + '\n';
+            
+            // Check if adding this row would exceed chunk size
+            if (currentChunk.content.length + rowText.length > this.chunkSize && currentChunk.content.length > 0) {
+              // Save current chunk
+              chunks.push({ ...currentChunk });
+              
+              // Start new chunk
+              currentChunk = {
+                content: rowText,
+                metadata: {
+                  fileName,
+                  sheetName,
+                  cellRange: cellRefs.join(', '),
+                  type: 'excel'
+                }
+              };
+            } else {
+              currentChunk.content += rowText;
+              if (currentChunk.metadata.cellRange) {
+                currentChunk.metadata.cellRange += ', ' + cellRefs.join(', ');
+              } else {
+                currentChunk.metadata.cellRange = cellRefs.join(', ');
+              }
+            }
+          }
+        }
+        
+        // Add final chunk if it has content
+        if (currentChunk.content.trim()) {
+          chunks.push(currentChunk);
+        }
+      }
+      
+      return chunks;
+    } catch (error) {
+      console.error('Excel processing error:', error);
+      throw error;
+    }
+  }
+
+  async processPDF(filePath, fileName) {
+    const chunks = [];
+    
+    try {
+      const dataBuffer = await fs.readFile(filePath);
+      const data = await pdfParse(dataBuffer);
+      
+      // Split by pages first
+      const pages = data.text.split('\n\n');
+      
+      pages.forEach((pageText, pageIndex) => {
+        if (!pageText.trim()) return;
+        
+        // Further split large pages into chunks
+        const pageChunks = this.splitIntoChunks(pageText, this.chunkSize);
+        
+        pageChunks.forEach((chunkText, chunkIndex) => {
+          chunks.push({
+            content: chunkText,
+            metadata: {
+              fileName,
+              pageNumber: pageIndex + 1,
+              chunkInPage: pageChunks.length > 1 ? chunkIndex + 1 : null,
+              type: 'pdf'
+            }
+          });
+        });
+      });
+      
+      return chunks;
+    } catch (error) {
+      console.error('PDF processing error:', error);
+      throw error;
+    }
+  }
+
+  splitIntoChunks(text, maxSize) {
+    const chunks = [];
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+    let currentChunk = '';
+    
+    for (const sentence of sentences) {
+      if (currentChunk.length + sentence.length > maxSize && currentChunk.length > 0) {
+        chunks.push(currentChunk.trim());
+        currentChunk = sentence;
+      } else {
+        currentChunk += ' ' + sentence;
+      }
+    }
+    
+    if (currentChunk.trim()) {
+      chunks.push(currentChunk.trim());
+    }
+    
+    return chunks;
+  }
+
+  getDocument(documentId) {
+    return this.documents.get(documentId);
+  }
+
+  getAllDocuments() {
+    return Array.from(this.documents.values()).map(doc => ({
+      id: doc.id,
+      fileName: doc.fileName,
+      fileType: doc.fileType,
+      uploadTime: doc.uploadTime,
+      processed: doc.processed,
+      chunkCount: doc.chunkCount
+    }));
+  }
+
+  deleteDocument(documentId) {
+    return this.documents.delete(documentId);
+  }
+
+  getAllChunks() {
+    const allChunks = [];
+    
+    for (const doc of this.documents.values()) {
+      allChunks.push(...doc.chunks.map(chunk => ({
+        ...chunk,
+        documentId: doc.id
+      })));
+    }
+    
+    return allChunks;
+  }
+
+  searchChunks(query) {
+    const queryLower = query.toLowerCase();
+    const results = [];
+    
+    for (const doc of this.documents.values()) {
+      for (const chunk of doc.chunks) {
+        if (chunk.content.toLowerCase().includes(queryLower)) {
+          results.push({
+            ...chunk,
+            documentId: doc.id,
+            fileName: doc.fileName
+          });
+        }
+      }
+    }
+    
+    return results;
+  }
+}
+
+module.exports = new DocumentProcessor();
+</file>
+
+<file path="vercel.json">
+{
+  "buildCommand": "npm run install-all && npm run build",
+  "outputDirectory": "client/build",
+  "framework": "create-react-app",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+</file>
+
+<file path="client/package.json">
+{
+  "name": "client",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.126",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "axios": "^1.10.0",
+    "lucide-react": "^0.525.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-scripts": "5.0.1",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "proxy": "http://localhost:5000",
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
+</file>
+
+<file path="client/src/components/memo/MemoHighlighter.tsx">
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useApp } from '../../contexts/AppContext';
+import { ClaimsList } from '../claims/ClaimsList';
+import { ProgressIndicator } from '../claims/ProgressIndicator';
+import { Claim } from '../../types';
+
+export function MemoHighlighter() {
+  const { state, dispatch } = useApp();
+  const { memoText, claims, processingTime } = state;
+  const [hoveredClaimId, setHoveredClaimId] = useState<string | null>(null);
+  const [isMemoCollapsed, setIsMemoCollapsed] = useState(true);
+  const memoRef = useRef<HTMLDivElement>(null);
+
+  const highlightedMemo = useMemo(() => {
+    if (!memoText || claims.length === 0) return memoText;
+
+    const sortedClaims = [...claims].sort((a, b) => a.range[0] - b.range[0]);
+    let result = [];
+    let lastIndex = 0;
+
+    sortedClaims.forEach((claim) => {
+      const [start, end] = claim.range;
+      
+      // Add text before the claim
+      if (start > lastIndex) {
+        result.push(
+          <span key={`text-${lastIndex}`}>
+            {memoText.slice(lastIndex, start)}
+          </span>
+        );
+      }
+
+      // Add the highlighted claim
+      const isHovered = hoveredClaimId === claim.id;
+      result.push(
+        <span
+          key={`claim-${claim.id}`}
+          className={`highlighted-claim status-${claim.status} ${isHovered ? 'hovered' : ''}`}
+          data-claim-id={claim.id}
+          onMouseEnter={() => setHoveredClaimId(claim.id)}
+          onMouseLeave={() => setHoveredClaimId(null)}
+        >
+          {memoText.slice(start, end)}
+        </span>
+      );
+
+      lastIndex = end;
+    });
+
+    // Add remaining text
+    if (lastIndex < memoText.length) {
+      result.push(
+        <span key={`text-${lastIndex}`}>
+          {memoText.slice(lastIndex)}
+        </span>
+      );
+    }
+
+    return result;
+  }, [memoText, claims, hoveredClaimId]);
+
+  // Scroll to highlighted claim when hovering
+  useEffect(() => {
+    if (hoveredClaimId && memoRef.current) {
+      const element = memoRef.current.querySelector(`[data-claim-id="${hoveredClaimId}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [hoveredClaimId]);
+
+  const handleBackToInput = () => {
+    dispatch({ type: 'RESET' });
+  };
+
+  const toggleMemoCollapse = () => {
+    setIsMemoCollapsed(!isMemoCollapsed);
+  };
+
+  return (
+    <div className="memo-highlighter">
+      <div className="highlighter-header">
+        <button onClick={handleBackToInput} className="btn btn-ghost btn-icon">
+          <ArrowLeft size={20} />
+          Back to Input
+        </button>
+        <h2 className="headline-2">Verify Investment Memo Claims</h2>
+        <p className="body-medium" style={{ color: 'var(--color-gray-600)', marginTop: '8px' }}>
+          Showing the {claims.length} most critical "make or break" claims that could impact the investment decision
+        </p>
+      </div>
+
+      <div className={`highlighter-content ${isMemoCollapsed ? 'memo-collapsed' : ''}`}>
+        <div className={`memo-panel ${isMemoCollapsed ? 'collapsed' : ''}`}>
+          <div className="panel-header">
+            <div className="panel-header-content">
+              <h3 className="headline-3">Original Memo</h3>
+              <button
+                onClick={toggleMemoCollapse}
+                className="btn btn-ghost btn-icon collapse-toggle"
+                aria-label={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
+                title={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
+              >
+                {isMemoCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+              </button>
+            </div>
+            {!isMemoCollapsed && (
+              <p className="body-small">Hover over claims to highlight them in the text</p>
+            )}
+          </div>
+          {!isMemoCollapsed && (
+            <div ref={memoRef} className="memo-text-container">
+              <p className="memo-text">{highlightedMemo}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="claims-panel">
+          <div className="sticky-progress-wrapper">
+            <ProgressIndicator claims={claims} processingTime={processingTime} />
+          </div>
+          <div className="claims-list-wrapper">
+            <ClaimsList claims={claims} onClaimHover={setHoveredClaimId} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 </file>
 
 <file path="client/src/styles/components.css">
@@ -1373,1224 +2757,409 @@ import '@testing-library/jest-dom';
   margin: 0 auto var(--spacing-lg);
   color: var(--color-gray-400);
 }
-</file>
 
-<file path="client/src/styles/typography.css">
-/* Typography System - The Economist Style */
+/* =========================================
+   DOCUMENT REPOSITORY STYLES
+   ========================================= */
 
-/* Headlines - Serif */
-.headline-1 {
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 32px;
-  font-weight: bold;
-  line-height: 1.2;
-  color: var(--color-secondary);
-  margin-bottom: var(--spacing-lg);
+.document-repository {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  overflow: hidden;
 }
 
-.headline-2 {
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 24px;
-  font-weight: bold;
-  line-height: 1.3;
-  color: var(--color-secondary);
-  margin-bottom: var(--spacing-md);
+.repository-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
 }
 
-.headline-3 {
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 20px;
+.repository-header .header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.repository-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
   font-weight: 600;
-  line-height: 1.4;
-  color: var(--color-secondary);
-  margin-bottom: var(--spacing-md);
 }
 
-/* Body Text - Sans-serif */
-.body-text {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
-  color: var(--color-secondary);
+.document-count {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
 }
 
-.body-small {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--color-gray-600);
+.toggle-btn {
+  padding: 0.5rem;
 }
 
-.body-large {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 18px;
-  line-height: 1.7;
-  color: var(--color-secondary);
+.repository-content {
+  padding: 1.5rem;
 }
 
-/* Special Text Styles */
-.caption {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--color-gray-600);
-  font-style: italic;
+/* Document Upload Styles */
+.document-upload {
+  margin-bottom: 1.5rem;
 }
 
-.label {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 12px;
+.upload-area {
+  display: block;
+  width: 100%;
+  padding: 2rem;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-area:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.upload-area.drag-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-lightest);
+}
+
+.upload-area.uploading {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upload-content svg {
+  color: var(--color-text-secondary);
+}
+
+.upload-text {
+  font-weight: 500;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.upload-hint {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.upload-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-error-lightest);
+  border: 1px solid var(--color-error-light);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: 0.875rem;
+}
+
+/* Document List Styles */
+.document-list {
+  margin-top: 1.5rem;
+}
+
+.document-list h4 {
+  font-size: 0.875rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-gray-700);
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  margin: 0 0 1rem 0;
 }
 
-.subtitle {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 18px;
-  line-height: 1.5;
-  color: var(--color-gray-600);
-  font-weight: 400;
+.document-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
 }
 
-/* Links */
-a {
-  color: var(--color-accent);
-  text-decoration: none;
-  transition: color var(--transition-fast);
+.document-item:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-sm);
 }
 
-a:hover {
-  color: var(--color-accent-light);
-  text-decoration: underline;
+.document-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
 }
 
-/* Emphasis */
-.text-primary {
-  color: var(--color-primary);
+.file-icon {
+  flex-shrink: 0;
 }
 
-.text-secondary {
-  color: var(--color-secondary);
-}
-
-.text-accent {
-  color: var(--color-accent);
-}
-
-.text-success {
-  color: var(--color-success);
-}
-
-.text-warning {
-  color: var(--color-warning);
-}
-
-.text-error {
+.file-icon.pdf {
   color: var(--color-error);
 }
 
-.text-muted {
-  color: var(--color-gray-600);
+.file-icon.excel {
+  color: var(--color-success);
 }
 
-/* Font Weight Utilities */
-.font-light {
-  font-weight: 300;
+.document-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-.font-normal {
-  font-weight: 400;
-}
-
-.font-medium {
+.document-name {
   font-weight: 500;
+  color: var(--color-text);
 }
 
-.font-semibold {
-  font-weight: 600;
+.document-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
 }
 
-.font-bold {
-  font-weight: 700;
+.delete-btn {
+  padding: 0.5rem;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
 }
 
-/* Text Alignment */
-.text-justify {
-  text-align: justify;
+.delete-btn:hover {
+  color: var(--color-error);
+  background: var(--color-error-lightest);
 }
 
-/* Line Height Utilities */
-.leading-tight {
-  line-height: 1.2;
+.delete-btn.deleting {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.leading-normal {
-  line-height: 1.6;
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary);
 }
 
-.leading-relaxed {
-  line-height: 1.8;
+.empty-state p {
+  margin: 0;
 }
 
-/* Letter Spacing */
-.tracking-tight {
-  letter-spacing: -0.05em;
+.empty-hint {
+  font-size: 0.875rem;
+  margin-top: 0.5rem !important;
 }
 
-.tracking-normal {
-  letter-spacing: 0;
-}
-
-.tracking-wide {
-  letter-spacing: 0.05em;
-}
-
-/* Lists */
-ul, ol {
-  margin-left: var(--spacing-lg);
-  margin-bottom: var(--spacing-md);
-}
-
-li {
-  margin-bottom: var(--spacing-xs);
-}
-
-/* Blockquote */
-blockquote {
-  border-left: 4px solid var(--color-primary);
-  padding-left: var(--spacing-lg);
-  margin: var(--spacing-lg) 0;
-  font-style: italic;
-  color: var(--color-gray-700);
-}
-
-/* Code */
-code {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  background-color: var(--color-gray-100);
-  padding: 2px 4px;
+/* Document Verification Results */
+.document-note {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
   border-radius: var(--radius-sm);
-  color: var(--color-accent);
+  font-size: 0.875rem;
+  border: 1px solid var(--color-border);
 }
 
-pre {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  background-color: var(--color-gray-100);
-  padding: var(--spacing-md);
+.document-note.document-found {
+  background-color: var(--color-success-lightest);
+  border-color: var(--color-success-light);
+}
+
+.document-note.document-contradicted {
+  background-color: var(--color-error-lightest);
+  border-color: var(--color-error-light);
+}
+
+.document-note.document-not-found {
+  background-color: var(--color-warning-lightest);
+  border-color: var(--color-warning-light);
+}
+
+.document-reasoning {
+  margin: 0 0 0.5rem 0;
+  color: var(--color-text);
+}
+
+.document-citations {
+  margin-top: 0.75rem;
+}
+
+.citations-label {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.citation-item {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: var(--radius-xs);
+}
+
+.citation-file {
+  font-weight: 500;
+  color: var(--color-primary);
+  margin-right: 0.5rem;
+}
+
+.citation-location {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.citation-content {
+  margin: 0.25rem 0 0 0;
+  font-style: italic;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+/* Status badge updates */
+.status-badge.status-document-found {
+  background-color: var(--color-success-lightest);
+  color: var(--color-success);
+  border-color: var(--color-success-light);
+}
+
+.status-badge.status-document-contradicted {
+  background-color: var(--color-error-lightest);
+  color: var(--color-error);
+  border-color: var(--color-error-light);
+}
+
+.status-badge.status-document-not-found {
+  background-color: var(--color-warning-lightest);
+  color: var(--color-warning);
+  border-color: var(--color-warning-light);
+}
+
+/* Progress indicator doc verified status */
+.status-icon.doc-verified {
+  background-color: var(--color-primary-lightest);
+  color: var(--color-primary);
+}
+
+/* Perplexity Prompt Info Styles */
+.perplexity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.prompt-info-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.btn-prompt-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-background);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.btn-prompt-info:hover {
+  background: var(--color-primary-lightest);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.prompt-tooltip {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 320px;
+  max-width: 90vw;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  overflow-x: auto;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  margin-top: 0.5rem;
+}
+
+.prompt-tooltip-header {
+  padding: 0.75rem 1rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.prompt-tooltip-content {
+  padding: 1rem;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.8125rem;
   line-height: 1.5;
-  margin-bottom: var(--spacing-md);
-}
-</file>
-
-<file path="client/tsconfig.json">
-{
-  "compilerOptions": {
-    "target": "es5",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx"
-  },
-  "include": [
-    "src"
-  ]
-}
-</file>
-
-<file path="package.json">
-{
-  "name": "sense-checkr",
-  "version": "1.0.0",
-  "description": "Professional investment memo fact-checking tool",
-  "private": true,
-  "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd server && npm start",
-    "client": "cd client && npm start",
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
-    "build": "cd client && npm run build",
-    "start": "cd server && npm start"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  }
-}
-</file>
-
-<file path="server/middleware/errorHandler.js">
-const errorHandler = (err, req, res, next) => {
-  // Log error for debugging
-  console.error(`Error: ${err.message}`);
-  console.error(err.stack);
-
-  // Default error status and message
-  let status = err.status || 500;
-  let message = err.message || 'Internal Server Error';
-
-  // Handle specific error types
-  if (err.name === 'ValidationError') {
-    status = 400;
-    message = 'Invalid request data';
-  } else if (err.name === 'UnauthorizedError') {
-    status = 401;
-    message = 'Unauthorized access';
-  } else if (err.name === 'RateLimitError') {
-    status = 429;
-    message = 'Too many requests';
-  } else if (err.isAxiosError) {
-    // Handle OpenRouter API errors
-    if (err.response) {
-      status = err.response.status;
-      message = err.response.data?.error?.message || 'External API error';
-    } else if (err.request) {
-      status = 503;
-      message = 'External service unavailable';
-    }
-  }
-
-  // Send error response
-  res.status(status).json({
-    error: {
-      message,
-      status,
-      timestamp: new Date().toISOString(),
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    }
-  });
-};
-
-module.exports = errorHandler;
-</file>
-
-<file path="server/package.json">
-{
-  "name": "sense-checkr-server",
-  "version": "1.0.0",
-  "description": "Backend server for Sense Checkr investment memo fact-checking",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "axios": "^1.6.5",
-    "dotenv": "^16.3.1",
-    "express-rate-limit": "^7.1.5",
-    "helmet": "^7.1.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
-  }
-}
-</file>
-
-<file path="server/railway.json">
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "NIXPACKS"
-  },
-  "deploy": {
-    "startCommand": "npm start",
-    "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 100,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
-</file>
-
-<file path="server/render.yaml">
-services:
-  - type: web
-    name: sense-checkr-backend
-    env: node
-    buildCommand: npm install
-    startCommand: npm start
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: FRONTEND_URL
-        value: https://sense-checkr-kbftvijck-god-squad-589edc03.vercel.app
-      - key: OPENROUTER_API_KEY
-        sync: false
-</file>
-
-<file path="vercel.json">
-{
-  "buildCommand": "npm run install-all && npm run build",
-  "outputDirectory": "client/build",
-  "framework": "create-react-app",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
-</file>
-
-<file path=".gitignore">
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-.vercel
-</file>
-
-<file path="client/src/components/claims/ClaimCard.tsx">
-import React, { useState } from 'react';
-import { Check, X, AlertCircle, HelpCircle, Globe, FileText, User, Loader, ExternalLink } from 'lucide-react';
-import { Claim } from '../../types';
-import { useClaimExtraction } from '../../hooks/useClaimExtraction';
-import { usePerplexityVerification } from '../../hooks/usePerplexityVerification';
-
-interface ClaimCardProps {
-  claim: Claim;
-  onHover?: (claimId: string | null) => void;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
-export function ClaimCard({ claim, onHover }: ClaimCardProps) {
-  const { updateClaimStatus } = useClaimExtraction();
-  const { verifyClaimWithPerplexity, getPerplexityResult, isVerifyingClaim } = usePerplexityVerification();
-  const [showManualVerify, setShowManualVerify] = useState(false);
-
-  const perplexityResult = getPerplexityResult(claim.id);
-  const isVerifying = isVerifyingClaim(claim.id);
-  const hasPerplexityResult = !!(perplexityResult && claim.verificationState === 'verified-perplexity');
-
-  // Debug logging
-  console.log('ClaimCard Debug:', {
-    claimId: claim.id,
-    verificationState: claim.verificationState,
-    perplexityResult: perplexityResult,
-    hasPerplexityResult: hasPerplexityResult,
-    isVerifying: isVerifying
-  });
-
-  const handleStatusChange = (status: Claim['status']) => {
-    updateClaimStatus(claim.id, status);
-  };
-
-  const handlePerplexityVerify = () => {
-    console.log('Verify with Perplexity clicked for claim:', claim.id);
-    verifyClaimWithPerplexity(claim.id);
-  };
-
-  const getStatusIcon = () => {
-    // If we have Perplexity results, show appropriate icon
-    if (hasPerplexityResult) {
-      switch (perplexityResult.status) {
-        case 'verified_true':
-          return <Check size={16} />;
-        case 'verified_false':
-          return <X size={16} />;
-        case 'partially_true':
-        case 'needs_context':
-          return <AlertCircle size={16} />;
-        case 'cannot_find_answer':
-          return <HelpCircle size={16} />;
-        default:
-          return <Globe size={16} />;
-      }
-    }
-
-    // Otherwise show manual verification status
-    switch (claim.status) {
-      case 'true':
-        return <Check size={16} />;
-      case 'false':
-        return <X size={16} />;
-      case 'assumption':
-        return <AlertCircle size={16} />;
-      default:
-        return <HelpCircle size={16} />;
-    }
-  };
-
-  const getDisplayStatus = () => {
-    // Prioritize Perplexity status if available
-    if (hasPerplexityResult) {
-      return getPerplexityStatusText(perplexityResult.status);
-    }
-    
-    // Otherwise show manual status
-    return claim.status === 'unverified' ? 'Unverified' : claim.status;
-  };
-
-  const getStatusClass = () => {
-    // Use Perplexity status class if available
-    if (hasPerplexityResult) {
-      return `status-${getPerplexityStatusClass(perplexityResult.status)}`;
-    }
-    
-    // Otherwise use manual status class
-    return `status-${claim.status}`;
-  };
-
-  const getConfidencePercentage = () => {
-    // Use Perplexity confidence if available
-    if (hasPerplexityResult && perplexityResult.confidence) {
-      return (perplexityResult.confidence / 10) * 100;
-    }
-    return (claim.confidence / 10) * 100;
-  };
-
-  const getConfidenceValue = () => {
-    if (hasPerplexityResult && perplexityResult.confidence) {
-      return perplexityResult.confidence;
-    }
-    return claim.confidence;
-  };
-
-  const getPerplexityStatusText = (status: string) => {
-    switch (status) {
-      case 'verified_true':
-        return 'Verified True';
-      case 'verified_false':
-        return 'Verified False';
-      case 'partially_true':
-        return 'Partially True';
-      case 'needs_context':
-        return 'Needs Context';
-      case 'cannot_find_answer':
-        return 'Cannot Find Answer';
-      default:
-        return status;
-    }
-  };
-
-  const getPerplexityStatusClass = (status: string) => {
-    switch (status) {
-      case 'verified_true':
-        return 'perplexity-true';
-      case 'verified_false':
-        return 'perplexity-false';
-      case 'partially_true':
-        return 'perplexity-partial';
-      case 'needs_context':
-        return 'perplexity-context';
-      case 'cannot_find_answer':
-        return 'perplexity-unknown';
-      default:
-        return '';
-    }
-  };
-
-  return (
-    <div
-      className={`claim-card ${getStatusClass()} fade-in`}
-      onMouseEnter={() => onHover?.(claim.id)}
-      onMouseLeave={() => onHover?.(null)}
-    >
-      <div className="claim-header">
-        <div className="claim-badges">
-          <span className={`category-badge ${claim.category}`}>
-            {claim.category}
-          </span>
-          <span className={`status-badge ${getStatusClass()}`}>
-            {getStatusIcon()}
-            {getDisplayStatus()}
-          </span>
-          {hasPerplexityResult && (
-            <span className="verification-type-badge">
-              <Globe size={12} />
-              AI Verified
-            </span>
-          )}
-        </div>
-        <div className="claim-confidence">
-          <span className="label">Confidence</span>
-          <div className="confidence-bar">
-            <div
-              className="confidence-fill"
-              style={{ width: `${getConfidencePercentage()}%` }}
-            />
-          </div>
-          <span className="confidence-value">{getConfidenceValue()}/10</span>
-        </div>
-      </div>
-
-      <div className="claim-content">
-        <p className="claim-text">{claim.text}</p>
-      </div>
-
-      {hasPerplexityResult && (
-        <div className={`perplexity-note ${getPerplexityStatusClass(perplexityResult.status)}`}>
-          <p className="perplexity-reasoning">{perplexityResult.reasoning}</p>
-          {perplexityResult.sources.length > 0 && (
-            <div className="perplexity-sources-compact">
-              <span className="sources-label">Sources:</span>
-              {perplexityResult.sources.slice(0, 2).map((source, index) => {
-                try {
-                  const hostname = new URL(source).hostname.replace('www.', '');
-                  return (
-                    <a
-                      key={index}
-                      href={source}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="source-link-compact"
-                      title={source}
-                    >
-                      {hostname}
-                    </a>
-                  );
-                } catch {
-                  return null;
-                }
-              })}
-              {perplexityResult.sources.length > 2 && (
-                <span className="more-sources">+{perplexityResult.sources.length - 2} more</span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {claim.verificationState === 'verification-error' && (
-        <div className="verification-error-message">
-          <AlertCircle size={16} />
-          <span>Verification failed. Please try again.</span>
-        </div>
-      )}
-
-      <div className="claim-actions">
-        <p className="label">Verify this claim:</p>
-        <div className="verification-options">
-          <button
-            onClick={handlePerplexityVerify}
-            className={`btn btn-sm btn-icon ${isVerifying ? 'btn-loading' : ''}`}
-            disabled={isVerifying || claim.verificationState === 'verified-perplexity'}
-            aria-label="Verify with Perplexity"
-          >
-            {isVerifying ? <Loader className="spinner" size={16} /> : <Globe size={16} />}
-            Verify with Perplexity
-          </button>
-          <button
-            className="btn btn-sm btn-icon btn-disabled"
-            disabled={true}
-            aria-label="Verify with Docs (Coming Soon)"
-          >
-            <FileText size={16} />
-            Verify with Docs
-          </button>
-          <button
-            onClick={() => setShowManualVerify(!showManualVerify)}
-            className={`btn btn-sm btn-icon ${showManualVerify ? 'btn-active' : ''}`}
-            aria-label="Verify by Human"
-          >
-            <User size={16} />
-            Verify by Human
-          </button>
-        </div>
-        
-        {showManualVerify && (
-          <div className="status-buttons">
-            <button
-              onClick={() => handleStatusChange('true')}
-              className={`btn btn-sm ${claim.status === 'true' ? 'btn-primary' : 'btn-ghost'}`}
-              aria-label="Mark as true"
-            >
-              <Check size={16} />
-              True
-            </button>
-            <button
-              onClick={() => handleStatusChange('false')}
-              className={`btn btn-sm ${claim.status === 'false' ? 'btn-primary' : 'btn-ghost'}`}
-              aria-label="Mark as false"
-            >
-              <X size={16} />
-              False
-            </button>
-            <button
-              onClick={() => handleStatusChange('assumption')}
-              className={`btn btn-sm ${claim.status === 'assumption' ? 'btn-primary' : 'btn-ghost'}`}
-              aria-label="Mark as assumption"
-            >
-              <AlertCircle size={16} />
-              Assumption
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="client/src/components/claims/ProgressIndicator.tsx">
-import React from 'react';
-import { Check, X, AlertCircle, HelpCircle, Globe } from 'lucide-react';
-import { Claim } from '../../types';
-
-interface ProgressIndicatorProps {
-  claims: Claim[];
-  processingTime?: number | null;
+/* Arrow for tooltip */
+.prompt-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 12px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid var(--color-border);
 }
 
-export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorProps) {
-  // Count claims by status and by AI verification
-  const statusCounts = claims.reduce(
-    (acc, claim) => {
-      acc[claim.status]++;
-      acc.total++;
-      if (claim.verificationState === 'verified-perplexity') {
-        acc.aiVerified++;
-      }
-      return acc;
-    },
-    { unverified: 0, true: 0, false: 0, assumption: 0, aiVerified: 0, total: 0 }
-  );
-
-  // A claim is "verified" if it is true/false/assumption OR AI-verified
-  const verifiedCount = statusCounts.true + statusCounts.false + statusCounts.assumption + statusCounts.aiVerified;
-  const progressPercentage = claims.length > 0 ? (verifiedCount / claims.length) * 100 : 0;
-
-  return (
-    <div className="progress-indicator">
-      <div className="progress-header">
-        <h3 className="headline-3">Verification Progress</h3>
-        {processingTime && (
-          <p className="processing-time">
-            Extracted in {(processingTime / 1000).toFixed(1)}s
-          </p>
-        )}
-      </div>
-
-      <div className="progress-bar-container">
-        <div className="progress-bar">
-          <div
-            className="progress-fill"
-            style={{ width: `${progressPercentage}%` }}
-          />
-        </div>
-        <p className="progress-text">
-          {verifiedCount} of {claims.length} claims verified ({Math.round(progressPercentage)}%)
-        </p>
-      </div>
-
-      <div className="status-summary">
-        <div className="status-item">
-          <div className="status-icon true">
-            <Check size={16} />
-          </div>
-          <span className="status-label">True</span>
-          <span className="status-count">{statusCounts.true}</span>
-        </div>
-        <div className="status-item">
-          <div className="status-icon false">
-            <X size={16} />
-          </div>
-          <span className="status-label">False</span>
-          <span className="status-count">{statusCounts.false}</span>
-        </div>
-        <div className="status-item">
-          <div className="status-icon assumption">
-            <AlertCircle size={16} />
-          </div>
-          <span className="status-label">Assumptions</span>
-          <span className="status-count">{statusCounts.assumption}</span>
-        </div>
-        <div className="status-item">
-          <div className="status-icon unverified">
-            <HelpCircle size={16} />
-          </div>
-          <span className="status-label">Unverified</span>
-          <span className="status-count">{statusCounts.unverified}</span>
-        </div>
-        <div className="status-item">
-          <div className="status-icon ai-verified">
-            <Globe size={16} />
-          </div>
-          <span className="status-label">AI Verified</span>
-          <span className="status-count">{statusCounts.aiVerified}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="client/src/components/memo/MemoHighlighter.tsx">
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
-import { ClaimsList } from '../claims/ClaimsList';
-import { ProgressIndicator } from '../claims/ProgressIndicator';
-import { Claim } from '../../types';
-
-export function MemoHighlighter() {
-  const { state, dispatch } = useApp();
-  const { memoText, claims, processingTime } = state;
-  const [hoveredClaimId, setHoveredClaimId] = useState<string | null>(null);
-  const [isMemoCollapsed, setIsMemoCollapsed] = useState(true);
-  const memoRef = useRef<HTMLDivElement>(null);
-
-  const highlightedMemo = useMemo(() => {
-    if (!memoText || claims.length === 0) return memoText;
-
-    const sortedClaims = [...claims].sort((a, b) => a.range[0] - b.range[0]);
-    let result = [];
-    let lastIndex = 0;
-
-    sortedClaims.forEach((claim) => {
-      const [start, end] = claim.range;
-      
-      // Add text before the claim
-      if (start > lastIndex) {
-        result.push(
-          <span key={`text-${lastIndex}`}>
-            {memoText.slice(lastIndex, start)}
-          </span>
-        );
-      }
-
-      // Add the highlighted claim
-      const isHovered = hoveredClaimId === claim.id;
-      result.push(
-        <span
-          key={`claim-${claim.id}`}
-          className={`highlighted-claim status-${claim.status} ${isHovered ? 'hovered' : ''}`}
-          data-claim-id={claim.id}
-          onMouseEnter={() => setHoveredClaimId(claim.id)}
-          onMouseLeave={() => setHoveredClaimId(null)}
-        >
-          {memoText.slice(start, end)}
-        </span>
-      );
-
-      lastIndex = end;
-    });
-
-    // Add remaining text
-    if (lastIndex < memoText.length) {
-      result.push(
-        <span key={`text-${lastIndex}`}>
-          {memoText.slice(lastIndex)}
-        </span>
-      );
-    }
-
-    return result;
-  }, [memoText, claims, hoveredClaimId]);
-
-  // Scroll to highlighted claim when hovering
-  useEffect(() => {
-    if (hoveredClaimId && memoRef.current) {
-      const element = memoRef.current.querySelector(`[data-claim-id="${hoveredClaimId}"]`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-  }, [hoveredClaimId]);
-
-  const handleBackToInput = () => {
-    dispatch({ type: 'RESET' });
-  };
-
-  const toggleMemoCollapse = () => {
-    setIsMemoCollapsed(!isMemoCollapsed);
-  };
-
-  return (
-    <div className="memo-highlighter">
-      <div className="highlighter-header">
-        <button onClick={handleBackToInput} className="btn btn-ghost btn-icon">
-          <ArrowLeft size={20} />
-          Back to Input
-        </button>
-        <h2 className="headline-2">Verify Investment Memo Claims</h2>
-      </div>
-
-      <div className={`highlighter-content ${isMemoCollapsed ? 'memo-collapsed' : ''}`}>
-        <div className={`memo-panel ${isMemoCollapsed ? 'collapsed' : ''}`}>
-          <div className="panel-header">
-            <div className="panel-header-content">
-              <h3 className="headline-3">Original Memo</h3>
-              <button
-                onClick={toggleMemoCollapse}
-                className="btn btn-ghost btn-icon collapse-toggle"
-                aria-label={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
-                title={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
-              >
-                {isMemoCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-              </button>
-            </div>
-            {!isMemoCollapsed && (
-              <p className="body-small">Hover over claims to highlight them in the text</p>
-            )}
-          </div>
-          {!isMemoCollapsed && (
-            <div ref={memoRef} className="memo-text-container">
-              <p className="memo-text">{highlightedMemo}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="claims-panel">
-          <div className="sticky-progress-wrapper">
-            <ProgressIndicator claims={claims} processingTime={processingTime} />
-          </div>
-          <div className="claims-list-wrapper">
-            <ClaimsList claims={claims} onClaimHover={setHoveredClaimId} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="client/src/components/memo/MemoInput.tsx">
-import React, { useState, useCallback, ChangeEvent } from 'react';
-import { FileText, Send, Building2, Briefcase } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
-import { useClaimExtraction } from '../../hooks/useClaimExtraction';
-
-export function MemoInput() {
-  const { state, dispatch } = useApp();
-  const { memoText, error, companyType } = state;
-  const { extractClaims, fetchSampleMemo, isExtracting } = useClaimExtraction();
-  const [isLoadingSample, setIsLoadingSample] = useState(false);
-
-  const handleTextChange = useCallback(
-    (e: ChangeEvent<HTMLTextAreaElement>) => {
-      dispatch({ type: 'SET_MEMO_TEXT', payload: e.target.value });
-      if (error) {
-        dispatch({ type: 'SET_ERROR', payload: null });
-      }
-    },
-    [dispatch, error]
-  );
-
-  const handleCompanyTypeChange = useCallback(
-    (type: 'external' | 'internal') => {
-      dispatch({ type: 'SET_COMPANY_TYPE', payload: type });
-    },
-    [dispatch]
-  );
-
-  const handleUseSample = useCallback(async () => {
-    setIsLoadingSample(true);
-    try {
-      const sampleMemo = await fetchSampleMemo();
-      dispatch({ type: 'SET_MEMO_TEXT', payload: sampleMemo });
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to load sample memo' });
-    } finally {
-      setIsLoadingSample(false);
-    }
-  }, [fetchSampleMemo, dispatch]);
-
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (memoText.trim().length < 50) {
-        dispatch({ type: 'SET_ERROR', payload: 'Please enter at least 50 characters' });
-        return;
-      }
-      await extractClaims(memoText);
-    },
-    [memoText, extractClaims, dispatch]
-  );
-
-  const characterCount = memoText.length;
-  const isValid = characterCount >= 50 && characterCount <= 20000;
-
-  return (
-    <div className="memo-input-container">
-      <div className="memo-input-header">
-        <h2 className="headline-2">Investment Memo Input</h2>
-        <p className="subtitle">
-          Paste your investment memo below and we'll extract all factual claims for verification
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="memo-form">
-        <div className="form-group">
-          <label className="form-label">Company Type</label>
-          <div className="company-type-toggle">
-            <label className={`radio-option ${companyType === 'external' ? 'active' : ''}`}>
-              <input
-                type="radio"
-                name="companyType"
-                value="external"
-                checked={companyType === 'external'}
-                onChange={() => handleCompanyTypeChange('external')}
-                disabled={isExtracting}
-              />
-              <Building2 size={20} />
-              <div>
-                <span className="radio-label">External Company</span>
-                <span className="radio-help">Real companies that exist publicly</span>
-              </div>
-            </label>
-            <label className={`radio-option ${companyType === 'internal' ? 'active' : ''}`}>
-              <input
-                type="radio"
-                name="companyType"
-                value="internal"
-                checked={companyType === 'internal'}
-                onChange={() => handleCompanyTypeChange('internal')}
-                disabled={isExtracting}
-              />
-              <Briefcase size={20} />
-              <div>
-                <span className="radio-label">Internal Venture</span>
-                <span className="radio-help">Internal corporate projects</span>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="memo-text" className="form-label">
-            Memo Text
-          </label>
-          <textarea
-            id="memo-text"
-            value={memoText}
-            onChange={handleTextChange}
-            className="form-textarea memo-textarea"
-            placeholder="Paste your investment memo here..."
-            disabled={isExtracting}
-            aria-describedby="character-count"
-          />
-          <div className="form-footer">
-            <button
-              type="button"
-              onClick={handleUseSample}
-              className="btn btn-secondary btn-sm"
-              disabled={isExtracting || isLoadingSample}
-            >
-              <FileText size={16} />
-              Use Sample Memo
-            </button>
-            <div id="character-count" className="character-count">
-              {characterCount} / 20,000 characters
-              {characterCount < 50 && characterCount > 0 && (
-                <span className="text-error"> (minimum 50)</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {error && (
-          <div className="error-message" role="alert">
-            {error}
-          </div>
-        )}
-
-        <div className="form-actions">
-          <button
-            type="submit"
-            className="btn btn-primary btn-lg btn-icon"
-            disabled={!isValid || isExtracting}
-          >
-            <Send size={20} />
-            {isExtracting ? 'Extracting Claims...' : 'Extract Claims'}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-</file>
-
-<file path="client/src/contexts/AppContext.tsx">
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { AppState, AppAction } from '../types';
-
-interface AppContextType {
-  state: AppState;
-  dispatch: React.Dispatch<AppAction>;
+.prompt-tooltip::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  right: 12px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid var(--color-surface-raised);
 }
 
-const initialState: AppState = {
-  currentStep: 'input',
-  memoText: '',
-  claims: [],
-  isLoading: false,
-  error: null,
-  processingTime: null,
-  companyType: 'external',
-  perplexityResults: {},
-};
-
-const AppContext = createContext<AppContextType | undefined>(undefined);
-
-function appReducer(state: AppState, action: AppAction): AppState {
-  switch (action.type) {
-    case 'SET_STEP':
-      return { ...state, currentStep: action.payload };
-    
-    case 'SET_MEMO_TEXT':
-      return { ...state, memoText: action.payload };
-    
-    case 'SET_CLAIMS':
-      return { 
-        ...state, 
-        claims: action.payload.map(claim => ({
-          ...claim,
-          verificationState: claim.verificationState || 'idle'
-        }))
-      };
-    
-    case 'UPDATE_CLAIM_STATUS':
-      return {
-        ...state,
-        claims: state.claims.map(claim =>
-          claim.id === action.payload.id
-            ? { ...claim, status: action.payload.status }
-            : claim
-        ),
-      };
-    
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-    
-    case 'SET_ERROR':
-      return { ...state, error: action.payload };
-    
-    case 'SET_PROCESSING_TIME':
-      return { ...state, processingTime: action.payload };
-    
-    case 'SET_COMPANY_TYPE':
-      return { ...state, companyType: action.payload };
-    
-    case 'SET_PERPLEXITY_RESULT':
-      return {
-        ...state,
-        perplexityResults: {
-          ...state.perplexityResults,
-          [action.payload.claimId]: action.payload.result,
-        },
-      };
-    
-    case 'SET_CLAIM_VERIFYING':
-      console.log('SET_CLAIM_VERIFYING action:', action.payload);
-      const verifyingState = {
-        ...state,
-        claims: state.claims.map(claim =>
-          claim.id === action.payload.claimId
-            ? {
-                ...claim,
-                verificationState: action.payload.isVerifying
-                  ? ('verifying-perplexity' as const)
-                  : (claim.verificationState === 'verifying-perplexity' ? ('idle' as const) : claim.verificationState),
-              }
-            : claim
-        ),
-      };
-      console.log('After SET_CLAIM_VERIFYING, claim state:', verifyingState.claims.find(c => c.id === action.payload.claimId));
-      return verifyingState;
-    
-    case 'SET_CLAIM_VERIFIED':
-      console.log('SET_CLAIM_VERIFIED action:', action.payload);
-      console.log('Current claims before update:', state.claims);
-      const updatedState = {
-        ...state,
-        claims: state.claims.map(claim => {
-          if (claim.id === action.payload.claimId) {
-            const updatedClaim = { ...claim, verificationState: 'verified-perplexity' as const };
-            console.log('Updating claim from:', claim);
-            console.log('Updating claim to:', updatedClaim);
-            return updatedClaim;
-          }
-          return claim;
-        }),
-        perplexityResults: {
-          ...state.perplexityResults,
-          [action.payload.claimId]: action.payload.result,
-        },
-      };
-      console.log('Updated state claims:', updatedState.claims);
-      console.log('Updated claim:', updatedState.claims.find(c => c.id === action.payload.claimId));
-      return updatedState;
-    
-    case 'SET_CLAIM_VERIFICATION_ERROR':
-      return {
-        ...state,
-        claims: state.claims.map(claim =>
-          claim.id === action.payload.claimId
-            ? { ...claim, verificationState: 'verification-error' }
-            : claim
-        ),
-        error: action.payload.error,
-      };
-    
-    case 'RESET':
-      return initialState;
-    
-    default:
-      return state;
-  }
+/* Document Repository in Input Page */
+.memo-input-container .document-repository {
+  margin-bottom: 2rem;
+  margin-top: 1rem;
 }
 
-interface AppProviderProps {
-  children: ReactNode;
-}
-
-export function AppProvider({ children }: AppProviderProps) {
-  const [state, dispatch] = useReducer(appReducer, initialState);
-
-  return (
-    <AppContext.Provider value={{ state, dispatch }}>
-      {children}
-    </AppContext.Provider>
-  );
-}
-
-export function useApp() {
-  const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
+.memo-input-container .document-repository .repository-header {
+  background: var(--color-surface-raised);
 }
 </file>
 
@@ -2766,6 +3335,458 @@ body {
 
 .slide-in {
   animation: slideIn var(--transition-slow) ease-out;
+}
+</file>
+
+<file path="README.md">
+# Sense Checkr - Professional Investment Memo Fact-Checking Tool
+
+A sophisticated B2B investment memo fact-checking application that helps financial analysts extract and verify factual claims from investment memos. Built with Node.js, React, and TypeScript, featuring an elegant design inspired by The Economist's clean, authoritative aesthetic.
+
+## Features
+
+- **AI-Powered Claim Extraction**: Automatically extracts factual claims from investment memos using OpenRouter API with GPT-4o-mini
+- **Professional UI**: Clean, newspaper-like layout with The Economist-inspired design
+- **Split-Screen Verification**: View original memo alongside extracted claims with synchronized highlighting
+- **Claim Categorization**: Automatic categorization into financial, market, operational, and other claims
+- **Real-time Progress Tracking**: Visual indicators for verification progress and status summaries
+- **Sample Memo**: Built-in realistic investment memo for testing
+
+## Tech Stack
+
+- **Backend**: Node.js + Express
+- **Frontend**: React 18 + TypeScript (Create React App)
+- **Styling**: CSS Modules with custom design system
+- **State Management**: React Context + useReducer
+- **Icons**: Lucide React
+- **LLM Integration**: OpenRouter API with GPT-4o-mini
+
+## Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn
+- OpenRouter API key
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd sense-checkr
+```
+
+2. Install dependencies:
+```bash
+npm run install-all
+```
+
+3. Create a `.env.local` file in the root directory with your OpenRouter API key:
+```env
+OPENROUTER_API_KEY=your_api_key_here
+```
+
+## Running the Application
+
+Development mode (runs both server and client):
+```bash
+npm run dev
+```
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:5000
+
+## API Endpoints
+
+- `POST /api/claims/extract` - Extract claims from memo text
+- `GET /api/claims/sample` - Get sample investment memo
+- `GET /api/health` - Health check endpoint
+
+## Project Structure
+
+```
+sense-checkr/
+├── server/
+│   ├── routes/api/         # API route handlers
+│   ├── middleware/         # Express middleware
+│   ├── utils/              # Utility functions (OpenRouter client)
+│   └── server.js           # Express server setup
+├── client/
+│   ├── public/             # Static files
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── contexts/       # React Context providers
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── styles/         # CSS files
+│   │   ├── types/          # TypeScript interfaces
+│   │   └── App.tsx         # Main App component
+└── package.json            # Root package.json
+
+```
+
+## Design System
+
+The application uses a custom design system inspired by The Economist:
+
+### Colors
+- Primary: Deep red (#E3120B)
+- Secondary: Charcoal (#2C2C2C)
+- Accent: Navy blue (#1B365D)
+- Success: Forest green (#228B22)
+- Warning: Amber (#FFB000)
+- Error: Crimson (#DC143C)
+
+### Typography
+- Headlines: Georgia serif font
+- Body text: System sans-serif fonts
+- Professional hierarchy with clear visual distinction
+
+## Features in Detail
+
+### Memo Input
+- Large, professional textarea with character count
+- Sample memo button for quick testing
+- Validation for minimum/maximum length
+- Clear error messaging
+
+### Claim Verification Interface
+- Split-screen layout: 60% memo, 40% claims
+- Color-coded highlighting based on verification status
+- Hover interactions for claim synchronization
+- Progress indicators with statistics
+
+### Claim Cards
+- Status indicators (unverified, true, false, assumption)
+- Category badges with distinct colors
+- Confidence scores with visual bars
+- One-click status updates
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License.
+</file>
+
+<file path="server/package.json">
+{
+  "name": "sense-checkr-server",
+  "version": "1.0.0",
+  "description": "Backend server for Sense Checkr investment memo fact-checking tool",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+</file>
+
+<file path=".gitignore">
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.vercel
+
+# Document uploads
+server/uploads/
+</file>
+
+<file path="client/src/components/memo/MemoInput.tsx">
+import React, { useState, useCallback, ChangeEvent } from 'react';
+import { FileText, Send, Building2, Briefcase } from 'lucide-react';
+import { useApp } from '../../contexts/AppContext';
+import { useClaimExtraction } from '../../hooks/useClaimExtraction';
+import { DocumentRepository } from '../documents/DocumentRepository';
+
+export function MemoInput() {
+  const { state, dispatch } = useApp();
+  const { memoText, error, companyType } = state;
+  const { extractClaims, fetchSampleMemo, isExtracting } = useClaimExtraction();
+  const [isLoadingSample, setIsLoadingSample] = useState(false);
+
+  const handleTextChange = useCallback(
+    (e: ChangeEvent<HTMLTextAreaElement>) => {
+      dispatch({ type: 'SET_MEMO_TEXT', payload: e.target.value });
+      if (error) {
+        dispatch({ type: 'SET_ERROR', payload: null });
+      }
+    },
+    [dispatch, error]
+  );
+
+  const handleCompanyTypeChange = useCallback(
+    (type: 'external' | 'internal') => {
+      dispatch({ type: 'SET_COMPANY_TYPE', payload: type });
+    },
+    [dispatch]
+  );
+
+  const handleUseSample = useCallback(async () => {
+    setIsLoadingSample(true);
+    try {
+      const sampleMemo = await fetchSampleMemo();
+      dispatch({ type: 'SET_MEMO_TEXT', payload: sampleMemo });
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to load sample memo' });
+    } finally {
+      setIsLoadingSample(false);
+    }
+  }, [fetchSampleMemo, dispatch]);
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (memoText.trim().length < 50) {
+        dispatch({ type: 'SET_ERROR', payload: 'Please enter at least 50 characters' });
+        return;
+      }
+      await extractClaims(memoText);
+    },
+    [memoText, extractClaims, dispatch]
+  );
+
+  const characterCount = memoText.length;
+  const isValid = characterCount >= 50 && characterCount <= 20000;
+
+  return (
+    <div className="memo-input-container">
+      <div className="memo-input-header">
+        <h2 className="headline-2">Investment Memo Input</h2>
+        <p className="subtitle">
+          Paste your investment memo below and we'll extract all factual claims for verification
+        </p>
+      </div>
+
+      <DocumentRepository />
+
+      <form onSubmit={handleSubmit} className="memo-form">
+        <div className="form-group">
+          <label className="form-label">Company Type</label>
+          <div className="company-type-toggle">
+            <label className={`radio-option ${companyType === 'external' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="companyType"
+                value="external"
+                checked={companyType === 'external'}
+                onChange={() => handleCompanyTypeChange('external')}
+                disabled={isExtracting}
+              />
+              <Building2 size={20} />
+              <div>
+                <span className="radio-label">External Company</span>
+                <span className="radio-help">Real companies that exist publicly</span>
+              </div>
+            </label>
+            <label className={`radio-option ${companyType === 'internal' ? 'active' : ''}`}>
+              <input
+                type="radio"
+                name="companyType"
+                value="internal"
+                checked={companyType === 'internal'}
+                onChange={() => handleCompanyTypeChange('internal')}
+                disabled={isExtracting}
+              />
+              <Briefcase size={20} />
+              <div>
+                <span className="radio-label">Internal Venture</span>
+                <span className="radio-help">Internal corporate projects</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="memo-text" className="form-label">
+            Memo Text
+          </label>
+          <textarea
+            id="memo-text"
+            value={memoText}
+            onChange={handleTextChange}
+            className="form-textarea memo-textarea"
+            placeholder="Paste your investment memo here..."
+            disabled={isExtracting}
+            aria-describedby="character-count"
+          />
+          <div className="form-footer">
+            <button
+              type="button"
+              onClick={handleUseSample}
+              className="btn btn-secondary btn-sm"
+              disabled={isExtracting || isLoadingSample}
+            >
+              <FileText size={16} />
+              Use Sample Memo
+            </button>
+            <div id="character-count" className="character-count">
+              {characterCount} / 20,000 characters
+              {characterCount < 50 && characterCount > 0 && (
+                <span className="text-error"> (minimum 50)</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div className="error-message" role="alert">
+            {error}
+          </div>
+        )}
+
+        <div className="form-actions">
+          <button
+            type="submit"
+            className="btn btn-primary btn-lg btn-icon"
+            disabled={!isValid || isExtracting}
+          >
+            <Send size={20} />
+            {isExtracting ? 'Extracting Claims...' : 'Extract Claims'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/hooks/usePerplexityVerification.ts">
+import { useCallback } from 'react';
+import { useApp } from '../contexts/AppContext';
+import { PerplexityResult } from '../types';
+
+export function usePerplexityVerification() {
+  const { state, dispatch } = useApp();
+
+  const verifyClaimWithPerplexity = useCallback(
+    async (claimId: string) => {
+      
+      const claim = state.claims.find(c => c.id === claimId);
+      if (!claim) {
+        console.error('Claim not found:', claimId);
+        return;
+      }
+
+      // Set verifying state
+      dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: true } });
+
+      try {
+        
+        const response = await fetch('/api/claims/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            claimText: claim.text,
+            memoText: state.memoText,
+            companyType: state.companyType,
+            claimId: claim.id,
+          }),
+        });
+        
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('API error response:', errorData);
+          throw new Error(errorData.error?.message || 'Verification failed');
+        }
+
+        const data = await response.json();
+        
+        // Update claim with verification result and mark as verified
+        dispatch({
+          type: 'SET_CLAIM_VERIFIED',
+          payload: {
+            claimId,
+            result: data.verificationResult,
+          },
+        });
+        
+
+      } catch (error) {
+        console.error('Perplexity verification error:', error);
+        
+        // Update claim state to show error and set error message
+        const errorMessage = error instanceof Error ? error.message : 'Verification failed';
+        dispatch({
+          type: 'SET_CLAIM_VERIFICATION_ERROR',
+          payload: {
+            claimId,
+            error: errorMessage,
+          },
+        });
+      } finally {
+        // Clear verifying state
+        dispatch({ type: 'SET_CLAIM_VERIFYING', payload: { claimId, isVerifying: false } });
+      }
+    },
+    [state.claims, state.memoText, state.companyType, dispatch]
+  );
+
+  const getPerplexityResult = useCallback(
+    (claimId: string): PerplexityResult | undefined => {
+      return state.perplexityResults[claimId];
+    },
+    [state.perplexityResults]
+  );
+
+  const isVerifyingClaim = useCallback(
+    (claimId: string): boolean => {
+      const claim = state.claims.find(c => c.id === claimId);
+      return claim?.verificationState === 'verifying-perplexity' || false;
+    },
+    [state.claims]
+  );
+
+  return {
+    verifyClaimWithPerplexity,
+    getPerplexityResult,
+    isVerifyingClaim,
+  };
 }
 </file>
 
@@ -3859,201 +4880,6 @@ body {
 }
 </file>
 
-<file path="client/src/types/index.ts">
-export interface Claim {
-  id: string;
-  text: string;
-  status: 'unverified' | 'true' | 'false' | 'assumption';
-  category: 'financial' | 'market' | 'operational' | 'other';
-  confidence: number; // 1-10
-  range: [number, number]; // Character positions
-  verificationState?: 'idle' | 'verifying-perplexity' | 'verified-perplexity' | 'verification-error';
-}
-
-export interface PerplexityResult {
-  status: 'verified_true' | 'verified_false' | 'partially_true' | 'needs_context' | 'cannot_find_answer';
-  reasoning: string;
-  sources: string[];
-  confidence?: number;
-  searchQuery: string;
-  timestamp: string;
-}
-
-export interface AppState {
-  currentStep: 'input' | 'verify';
-  memoText: string;
-  claims: Claim[];
-  isLoading: boolean;
-  error: string | null;
-  processingTime: number | null;
-  companyType: 'external' | 'internal';
-  perplexityResults: Record<string, PerplexityResult>;
-}
-
-export type AppAction =
-  | { type: 'SET_STEP'; payload: 'input' | 'verify' }
-  | { type: 'SET_MEMO_TEXT'; payload: string }
-  | { type: 'SET_CLAIMS'; payload: Claim[] }
-  | { type: 'UPDATE_CLAIM_STATUS'; payload: { id: string; status: Claim['status'] } }
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SET_PROCESSING_TIME'; payload: number }
-  | { type: 'SET_COMPANY_TYPE'; payload: 'external' | 'internal' }
-  | { type: 'SET_PERPLEXITY_RESULT'; payload: { claimId: string; result: PerplexityResult } }
-  | { type: 'SET_CLAIM_VERIFYING'; payload: { claimId: string; isVerifying: boolean } }
-  | { type: 'SET_CLAIM_VERIFIED'; payload: { claimId: string; result: PerplexityResult } }
-  | { type: 'SET_CLAIM_VERIFICATION_ERROR'; payload: { claimId: string; error: string } }
-  | { type: 'RESET' };
-
-export interface ClaimExtractionResponse {
-  claims: Claim[];
-  processingTime: number;
-  memoLength: number;
-  claimCount: number;
-}
-
-export interface SampleMemoResponse {
-  sampleMemo: string;
-  description: string;
-}
-</file>
-
-<file path="README.md">
-# Sense Checkr - Professional Investment Memo Fact-Checking Tool
-
-A sophisticated B2B investment memo fact-checking application that helps financial analysts extract and verify factual claims from investment memos. Built with Node.js, React, and TypeScript, featuring an elegant design inspired by The Economist's clean, authoritative aesthetic.
-
-## Features
-
-- **AI-Powered Claim Extraction**: Automatically extracts factual claims from investment memos using OpenRouter API with GPT-4o-mini
-- **Professional UI**: Clean, newspaper-like layout with The Economist-inspired design
-- **Split-Screen Verification**: View original memo alongside extracted claims with synchronized highlighting
-- **Claim Categorization**: Automatic categorization into financial, market, operational, and other claims
-- **Real-time Progress Tracking**: Visual indicators for verification progress and status summaries
-- **Sample Memo**: Built-in realistic investment memo for testing
-
-## Tech Stack
-
-- **Backend**: Node.js + Express
-- **Frontend**: React 18 + TypeScript (Create React App)
-- **Styling**: CSS Modules with custom design system
-- **State Management**: React Context + useReducer
-- **Icons**: Lucide React
-- **LLM Integration**: OpenRouter API with GPT-4o-mini
-
-## Prerequisites
-
-- Node.js (v14 or higher)
-- npm or yarn
-- OpenRouter API key
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd sense-checkr
-```
-
-2. Install dependencies:
-```bash
-npm run install-all
-```
-
-3. Create a `.env.local` file in the root directory with your OpenRouter API key:
-```env
-OPENROUTER_API_KEY=your_api_key_here
-```
-
-## Running the Application
-
-Development mode (runs both server and client):
-```bash
-npm run dev
-```
-
-The application will be available at:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
-
-## API Endpoints
-
-- `POST /api/claims/extract` - Extract claims from memo text
-- `GET /api/claims/sample` - Get sample investment memo
-- `GET /api/health` - Health check endpoint
-
-## Project Structure
-
-```
-sense-checkr/
-├── server/
-│   ├── routes/api/         # API route handlers
-│   ├── middleware/         # Express middleware
-│   ├── utils/              # Utility functions (OpenRouter client)
-│   └── server.js           # Express server setup
-├── client/
-│   ├── public/             # Static files
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── contexts/       # React Context providers
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── styles/         # CSS files
-│   │   ├── types/          # TypeScript interfaces
-│   │   └── App.tsx         # Main App component
-└── package.json            # Root package.json
-
-```
-
-## Design System
-
-The application uses a custom design system inspired by The Economist:
-
-### Colors
-- Primary: Deep red (#E3120B)
-- Secondary: Charcoal (#2C2C2C)
-- Accent: Navy blue (#1B365D)
-- Success: Forest green (#228B22)
-- Warning: Amber (#FFB000)
-- Error: Crimson (#DC143C)
-
-### Typography
-- Headlines: Georgia serif font
-- Body text: System sans-serif fonts
-- Professional hierarchy with clear visual distinction
-
-## Features in Detail
-
-### Memo Input
-- Large, professional textarea with character count
-- Sample memo button for quick testing
-- Validation for minimum/maximum length
-- Clear error messaging
-
-### Claim Verification Interface
-- Split-screen layout: 60% memo, 40% claims
-- Color-coded highlighting based on verification status
-- Hover interactions for claim synchronization
-- Progress indicators with statistics
-
-### Claim Cards
-- Status indicators (unverified, true, false, assumption)
-- Category badges with distinct colors
-- Confidence scores with visual bars
-- One-click status updates
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License.
-</file>
-
 <file path="server/routes/api/claims.js">
 const express = require('express');
 const router = express.Router();
@@ -4174,15 +5000,18 @@ router.post('/verify', async (req, res, next) => {
     // Log success
     console.log(`Successfully verified claim ${claimId} in ${processingTime}ms - Result: ${verificationResult.status}`);
 
-    // Send response
-    res.json({
+    const responseData = {
       claimId,
       verificationResult: {
         ...verificationResult,
+        searchPrompt: preprocessedData.perplexityPrompt, // Include the actual prompt sent
         timestamp: new Date().toISOString()
       },
       processingTime
-    });
+    };
+
+    // Send response
+    res.json(responseData);
 
   } catch (error) {
     // Pass error to error handler middleware
@@ -4220,8 +5049,10 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const errorHandler = require('./middleware/errorHandler');
 const claimsRouter = require('./routes/api/claims');
+const documentsRouter = require('./routes/api/documents');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -4233,13 +5064,19 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.FRONTEND_URL 
-    : 'http://localhost:3000',
-  credentials: true
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Length', 'Content-Type']
 }));
 
-// Body parsing middleware
+// Body parsing middleware - MUST come before routes
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Static file serving for uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Rate limiting
 const apiLimiter = rateLimit({
@@ -4259,10 +5096,16 @@ app.use((req, res, next) => {
 
 // API routes
 app.use('/api/claims', claimsRouter);
+app.use('/api/documents', documentsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
 });
 
 // Error handling middleware (must be last)
@@ -4281,7 +5124,7 @@ class OpenRouterClient {
   constructor() {
     this.apiKey = process.env.OPENROUTER_API_KEY;
     this.baseURL = 'https://openrouter.ai/api/v1';
-    this.model = 'openai/gpt-4.1-mini';
+    this.model = 'meta-llama/llama-4-maverick-17b-128e-instruct';
     this.groqModel = 'meta-llama/llama-4-maverick-17b-128e-instruct';
     this.perplexityModel = 'perplexity/sonar-pro';
     this.maxRetries = 3;
@@ -4306,7 +5149,7 @@ class OpenRouterClient {
       model: model || this.model,
       messages,
       temperature,
-      max_tokens: 4000
+      max_tokens: 40000
     };
 
     let lastError;
@@ -4341,35 +5184,47 @@ class OpenRouterClient {
   }
 
   async extractClaims(memoText) {
-    const systemPrompt = `You are a professional financial analyst assistant specializing in fact-checking investment memos. Your task is to extract factual claims from investment memos and categorize them.
+    const systemPrompt = `You are a professional financial analyst assistant. Your ONLY task is to extract EXACTLY 10 claims - no more, no less.
 
-Extract claims that are:
-1. Specific, verifiable statements (numbers, dates, percentages, market sizes, etc.)
-2. Assumptions or projections stated as facts
-3. Company performance metrics
-4. Market positioning statements
+CRITICAL REQUIREMENT: You MUST return EXACTLY 10 claims. Not 11, not 37, not 50. EXACTLY 10.
 
-For each claim, provide:
-- text: The exact claim as stated in the memo
+These 10 claims should be the MOST CRITICAL "make or break" facts that would determine investment success or failure.
+
+Focus on:
+1. Core financial metrics (revenue, ARR, burn rate, profitability)
+2. Market size and growth rate claims
+3. Competitive positioning claims
+4. Unit economics
+5. Critical operational metrics
+
+DO NOT include minor details or generic observations.
+
+For each of the EXACTLY 10 claims, provide:
+- text: The exact claim text
 - category: One of 'financial', 'market', 'operational', or 'other'
-- confidence: Your confidence in the categorization (1-10)
-- range: Character positions [start, end] where the claim appears
+- confidence: 1-10
+- range: [start, end] character positions
+- importance: 1-10 (how critical to investment decision)
 
-Return a JSON array of claims. Be thorough but avoid duplicates.`;
+Return a JSON array with EXACTLY 10 items. If you return more than 10, the system will fail.`;
 
-    const userPrompt = `Extract all factual claims from this investment memo:\n\n${memoText}`;
+    const userPrompt = `Extract EXACTLY 10 most important claims from this memo. Remember: EXACTLY 10, not more, not less:\n\n${memoText}`;
 
     try {
       const startTime = Date.now();
+      console.log('Requesting claim extraction...');
+      
       const response = await this.makeRequest([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
-      ], 0.3); // Lower temperature for more consistent extraction
+      ], 0.2); // Even lower temperature for more consistent behavior
 
       const processingTime = Date.now() - startTime;
       
       // Parse the response
       const content = response.choices[0].message.content;
+      console.log('Raw AI response length:', content.length);
+      
       let claims;
       
       try {
@@ -4377,6 +5232,7 @@ Return a JSON array of claims. Be thorough but avoid duplicates.`;
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
           claims = JSON.parse(jsonMatch[0]);
+          console.log(`AI returned ${claims.length} claims`);
         } else {
           throw new Error('No JSON array found in response');
         }
@@ -4385,14 +5241,38 @@ Return a JSON array of claims. Be thorough but avoid duplicates.`;
         throw new Error('Failed to parse AI response');
       }
 
+      // AGGRESSIVE ENFORCEMENT: Absolutely ensure we have exactly 10 claims
+      if (claims.length > 10) {
+        console.warn(`AI returned ${claims.length} claims despite instructions. Forcefully limiting to 10.`);
+        
+        // Sort by importance if available, otherwise just take first 10
+        if (claims[0]?.importance !== undefined) {
+          claims.sort((a, b) => (b.importance || 5) - (a.importance || 5));
+        }
+        
+        claims = claims.slice(0, 10);
+      } else if (claims.length < 10) {
+        console.warn(`AI returned only ${claims.length} claims. Requested 10.`);
+      }
+
       // Add IDs and default status to claims
       claims = claims.map((claim, index) => ({
         id: `claim-${Date.now()}-${index}`,
         status: 'unverified',
         ...claim,
         // Ensure range is provided, default to [0, 0] if not
-        range: claim.range || [0, 0]
+        range: claim.range || [0, 0],
+        // Ensure importance is provided
+        importance: claim.importance || 5
       }));
+
+      // FINAL CHECK - This should never happen but just in case
+      if (claims.length > 10) {
+        console.error('CRITICAL: Still have more than 10 claims after all processing!');
+        claims = claims.slice(0, 10);
+      }
+
+      console.log(`Successfully extracted ${claims.length} critical claims`);
 
       return {
         claims,
@@ -4458,8 +5338,9 @@ ${memoContext}
     } catch (error) {
       console.error('Error preprocessing claim:', error);
       // Fallback: create a basic prompt if preprocessing fails
+      const fallbackPrompt = `I need to verify this claim from an investment memo: "${claimText}". This is about ${companyType === 'internal' ? 'an internal corporate venture' : 'an external company'}. Can you help verify if this claim is accurate?`;
       return {
-        perplexityPrompt: `I need to verify this claim from an investment memo: "${claimText}". This is about ${companyType === 'internal' ? 'an internal corporate venture' : 'an external company'}. Can you help verify if this claim is accurate?`,
+        perplexityPrompt: fallbackPrompt,
         originalClaim: claimText,
         companyType
       };
@@ -4486,7 +5367,11 @@ ${memoContext}
         preprocessedData.originalClaim
       );
       
-      return processedResult;
+      // Step 3: Add the original searchPrompt to the result
+      return {
+        ...processedResult,
+        searchPrompt: perplexityPrompt // Preserve the original prompt
+      };
       
     } catch (error) {
       console.error('Error verifying claim with Perplexity:', error);
@@ -4607,9 +5492,882 @@ ${perplexityResponse}`;
       searchQuery: 'Processed from Perplexity response'
     };
   }
+
+  async verifyClaimWithDocuments(claimText, documentChunks) {
+    const systemPrompt = `You are a document verification assistant. Your task is to verify if a claim can be supported by the provided document chunks.
+
+**CLAIM TO VERIFY:**
+${claimText}
+
+**YOUR TASK:**
+1. Search through the provided document chunks for information that supports, contradicts, or provides context for the claim
+2. Pay special attention to specific numbers, dates, percentages, and facts
+3. Note the exact location where relevant information was found
+4. Determine if the claim is supported by the documents
+
+**VERIFICATION STATUSES:**
+- found: The claim is clearly supported by the documents
+- not_found: No relevant information found in the documents
+- contradicted: The documents contain information that contradicts the claim
+
+Return a JSON object with this exact structure:
+{
+  "status": "found" | "not_found" | "contradicted",
+  "reasoning": "Brief explanation of your findings",
+  "citations": [
+    {
+      "fileName": "document name",
+      "location": "specific location like 'Sheet: Revenue, Cell: B15' or 'Page: 23'",
+      "content": "the actual relevant content found"
+    }
+  ],
+  "confidence": 1-10 based on how well the documents support/contradict the claim
+}`;
+
+    try {
+      // Format chunks for the AI
+      const formattedChunks = documentChunks.map((chunk, index) => {
+        let location = '';
+        if (chunk.metadata.type === 'excel') {
+          location = `Sheet: ${chunk.metadata.sheetName}${chunk.metadata.cellRange ? ', Cells: ' + chunk.metadata.cellRange.split(', ').slice(0, 5).join(', ') : ''}`;
+        } else if (chunk.metadata.type === 'pdf') {
+          location = `Page: ${chunk.metadata.pageNumber}`;
+        }
+        
+        return `[Chunk ${index + 1} - ${chunk.metadata.fileName} - ${location}]
+${chunk.content}
+---`;
+      }).join('\n\n');
+
+      const userPrompt = `Here are the document chunks to search through:
+
+${formattedChunks}
+
+Please verify if the claim "${claimText}" is supported by these documents.`;
+
+      console.log(`Sending document verification request for claim: ${claimText}`);
+      
+      const response = await this.makeRequest([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ], 0.3, this.groqModel);
+
+      const content = response.choices[0].message.content.trim();
+      
+      try {
+        // Extract JSON from response
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const result = JSON.parse(jsonMatch[0]);
+          
+          // Ensure all required fields are present
+          return {
+            status: result.status || 'not_found',
+            reasoning: result.reasoning || 'Unable to verify claim against documents',
+            citations: Array.isArray(result.citations) ? result.citations : [],
+            confidence: result.confidence || 5
+          };
+        } else {
+          throw new Error('No JSON found in response');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse document verification response:', parseError);
+        console.error('Raw response:', content);
+        
+        // Fallback response
+        return {
+          status: 'not_found',
+          reasoning: 'Failed to process document verification results',
+          citations: [],
+          confidence: 0
+        };
+      }
+      
+    } catch (error) {
+      console.error('Error in document verification:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = new OpenRouterClient();
+</file>
+
+<file path="client/src/components/claims/ClaimCard.tsx">
+import React, { useState, useRef, useEffect } from 'react';
+import { Check, X, AlertCircle, HelpCircle, Globe, FileText, User, Loader, ExternalLink, Info } from 'lucide-react';
+import { Claim } from '../../types';
+import { useClaimExtraction } from '../../hooks/useClaimExtraction';
+import { usePerplexityVerification } from '../../hooks/usePerplexityVerification';
+import { useDocumentVerification } from '../../hooks/useDocumentVerification';
+
+interface ClaimCardProps {
+  claim: Claim;
+  onHover?: (claimId: string | null) => void;
+}
+
+export function ClaimCard({ claim, onHover }: ClaimCardProps) {
+  const { updateClaimStatus } = useClaimExtraction();
+  const { verifyClaimWithPerplexity, getPerplexityResult, isVerifyingClaim } = usePerplexityVerification();
+  const { 
+    verifyClaimWithDocuments, 
+    getDocumentVerificationResult, 
+    isVerifyingClaimWithDocuments,
+    hasDocumentVerificationResult,
+    hasDocuments 
+  } = useDocumentVerification();
+  const [showManualVerify, setShowManualVerify] = useState(false);
+  const [showPromptTooltip, setShowPromptTooltip] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
+        setShowPromptTooltip(false);
+      }
+    }
+
+    if (showPromptTooltip) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showPromptTooltip]);
+
+  const perplexityResult = getPerplexityResult(claim.id);
+  const documentResult = getDocumentVerificationResult(claim.id);
+  const isVerifying = isVerifyingClaim(claim.id);
+  const isVerifyingDocs = isVerifyingClaimWithDocuments(claim.id);
+  const hasPerplexityResult = !!(perplexityResult && claim.verificationState === 'verified-perplexity');
+  const hasDocResult = hasDocumentVerificationResult(claim.id);
+
+  // Debug logging
+  console.log('ClaimCard Debug:', {
+    claimId: claim.id,
+    verificationState: claim.verificationState,
+    perplexityResult: perplexityResult,
+    hasPerplexityResult: hasPerplexityResult,
+    isVerifying: isVerifying
+  });
+
+  const handleStatusChange = (status: Claim['status']) => {
+    updateClaimStatus(claim.id, status);
+  };
+
+  const handlePerplexityVerify = () => {
+    console.log('Verify with Perplexity clicked for claim:', claim.id);
+    verifyClaimWithPerplexity(claim.id);
+  };
+
+  const handleDocumentVerify = () => {
+    console.log('Verify with Documents clicked for claim:', claim.id);
+    verifyClaimWithDocuments(claim.id);
+  };
+
+  const getStatusIcon = () => {
+    // If we have document results, show appropriate icon
+    if (hasDocResult && documentResult) {
+      switch (documentResult.status) {
+        case 'found':
+          return <Check size={16} />;
+        case 'contradicted':
+          return <X size={16} />;
+        case 'not_found':
+          return <HelpCircle size={16} />;
+        default:
+          return <FileText size={16} />;
+      }
+    }
+    
+    // If we have Perplexity results, show appropriate icon
+    if (hasPerplexityResult) {
+      switch (perplexityResult.status) {
+        case 'verified_true':
+          return <Check size={16} />;
+        case 'verified_false':
+          return <X size={16} />;
+        case 'partially_true':
+        case 'needs_context':
+          return <AlertCircle size={16} />;
+        case 'cannot_find_answer':
+          return <HelpCircle size={16} />;
+        default:
+          return <Globe size={16} />;
+      }
+    }
+
+    // Otherwise show manual verification status
+    switch (claim.status) {
+      case 'true':
+        return <Check size={16} />;
+      case 'false':
+        return <X size={16} />;
+      case 'assumption':
+        return <AlertCircle size={16} />;
+      default:
+        return <HelpCircle size={16} />;
+    }
+  };
+
+  const getDisplayStatus = () => {
+    // Prioritize document status if available
+    if (hasDocResult && documentResult) {
+      return getDocumentStatusText(documentResult.status);
+    }
+    
+    // Otherwise use Perplexity status if available
+    if (hasPerplexityResult) {
+      return getPerplexityStatusText(perplexityResult.status);
+    }
+    
+    // Otherwise show manual status
+    return claim.status === 'unverified' ? 'Unverified' : claim.status;
+  };
+
+  const getStatusClass = () => {
+    // Use document status class if available
+    if (hasDocResult && documentResult) {
+      return `status-${getDocumentStatusClass(documentResult.status)}`;
+    }
+    
+    // Use Perplexity status class if available
+    if (hasPerplexityResult) {
+      return `status-${getPerplexityStatusClass(perplexityResult.status)}`;
+    }
+    
+    // Otherwise use manual status class
+    return `status-${claim.status}`;
+  };
+
+  const getPerplexityStatusText = (status: string) => {
+    switch (status) {
+      case 'verified_true':
+        return 'Verified True';
+      case 'verified_false':
+        return 'Verified False';
+      case 'partially_true':
+        return 'Partially True';
+      case 'needs_context':
+        return 'Needs Context';
+      case 'cannot_find_answer':
+        return 'Cannot Find Answer';
+      default:
+        return status;
+    }
+  };
+
+  const getPerplexityStatusClass = (status: string) => {
+    switch (status) {
+      case 'verified_true':
+        return 'perplexity-true';
+      case 'verified_false':
+        return 'perplexity-false';
+      case 'partially_true':
+        return 'perplexity-partial';
+      case 'needs_context':
+        return 'perplexity-context';
+      case 'cannot_find_answer':
+        return 'perplexity-unknown';
+      default:
+        return '';
+    }
+  };
+
+  const getDocumentStatusText = (status: string) => {
+    switch (status) {
+      case 'found':
+        return 'Found in Docs';
+      case 'contradicted':
+        return 'Contradicted';
+      case 'not_found':
+        return 'Not Found';
+      default:
+        return status;
+    }
+  };
+
+  const getDocumentStatusClass = (status: string) => {
+    switch (status) {
+      case 'found':
+        return 'document-found';
+      case 'contradicted':
+        return 'document-contradicted';
+      case 'not_found':
+        return 'document-not-found';
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <div
+      className={`claim-card ${getStatusClass()} fade-in`}
+      onMouseEnter={() => onHover?.(claim.id)}
+      onMouseLeave={() => onHover?.(null)}
+    >
+      <div className="claim-header">
+        <div className="claim-badges">
+          <span className={`category-badge ${claim.category}`}>
+            {claim.category}
+          </span>
+          <span className={`status-badge ${getStatusClass()}`}>
+            {getStatusIcon()}
+            {getDisplayStatus()}
+          </span>
+          {hasPerplexityResult && (
+            <span className="verification-type-badge">
+              <Globe size={12} />
+              AI Verified
+            </span>
+          )}
+          {hasDocResult && (
+            <span className="verification-type-badge">
+              <FileText size={12} />
+              Doc Verified
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="claim-content">
+        <p className="claim-text">{claim.text}</p>
+      </div>
+
+      {hasDocResult && documentResult && (
+        <div className={`document-note ${getDocumentStatusClass(documentResult.status)}`}>
+          <p className="document-reasoning">{documentResult.reasoning}</p>
+          {documentResult.citations.length > 0 && (
+            <div className="document-citations">
+              <span className="citations-label">Found in:</span>
+              {documentResult.citations.map((citation, index) => (
+                <div key={index} className="citation-item">
+                  <span className="citation-file">{citation.fileName}</span>
+                  <span className="citation-location">{citation.location}</span>
+                  {citation.content && (
+                    <p className="citation-content">"{citation.content}"</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {hasPerplexityResult && (
+        <div className={`perplexity-note ${getPerplexityStatusClass(perplexityResult.status)}`}>
+          <div className="perplexity-header">
+            <p className="perplexity-reasoning">{perplexityResult.reasoning}</p>
+            {perplexityResult.searchPrompt && (
+              <div className="prompt-info-container" ref={tooltipRef}>
+                <button
+                  className="btn-prompt-info"
+                  onMouseEnter={() => setShowPromptTooltip(true)}
+                  onMouseLeave={() => setShowPromptTooltip(false)}
+                  onClick={() => setShowPromptTooltip(!showPromptTooltip)}
+                  aria-label="Show prompt sent to Perplexity"
+                >
+                  <Info size={14} />
+                </button>
+                {showPromptTooltip && (
+                  <div className="prompt-tooltip">
+                    <div className="prompt-tooltip-header">
+                      <strong>Prompt sent to Perplexity:</strong>
+                    </div>
+                    <div className="prompt-tooltip-content">
+                      {perplexityResult.searchPrompt}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {perplexityResult.sources.length > 0 && (
+            <div className="perplexity-sources-compact">
+              <span className="sources-label">Sources:</span>
+              {perplexityResult.sources.slice(0, 2).map((source, index) => {
+                try {
+                  const hostname = new URL(source).hostname.replace('www.', '');
+                  return (
+                    <a
+                      key={index}
+                      href={source}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="source-link-compact"
+                      title={source}
+                    >
+                      {hostname}
+                    </a>
+                  );
+                } catch {
+                  return null;
+                }
+              })}
+              {perplexityResult.sources.length > 2 && (
+                <span className="more-sources">+{perplexityResult.sources.length - 2} more</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {claim.verificationState === 'verification-error' && (
+        <div className="verification-error-message">
+          <AlertCircle size={16} />
+          <span>Verification failed. Please try again.</span>
+        </div>
+      )}
+
+      <div className="claim-actions">
+        <p className="label">Verify this claim:</p>
+        <div className="verification-options">
+          <button
+            onClick={handlePerplexityVerify}
+            className={`btn btn-sm btn-icon ${isVerifying ? 'btn-loading' : ''}`}
+            disabled={isVerifying || claim.verificationState === 'verified-perplexity'}
+            aria-label="Verify with Perplexity"
+          >
+            {isVerifying ? <Loader className="spinner" size={16} /> : <Globe size={16} />}
+            Verify with Perplexity
+          </button>
+          <button
+            onClick={handleDocumentVerify}
+            className={`btn btn-sm btn-icon ${isVerifyingDocs ? 'btn-loading' : ''} ${!hasDocuments ? 'btn-disabled' : ''}`}
+            disabled={isVerifyingDocs || claim.verificationState === 'verified-document' || !hasDocuments}
+            aria-label={hasDocuments ? "Verify with Docs" : "Verify with Docs (Upload documents first)"}
+            title={!hasDocuments ? "Upload documents first" : undefined}
+          >
+            {isVerifyingDocs ? <Loader className="spinner" size={16} /> : <FileText size={16} />}
+            Verify with Docs
+          </button>
+          <button
+            onClick={() => setShowManualVerify(!showManualVerify)}
+            className={`btn btn-sm btn-icon ${showManualVerify ? 'btn-active' : ''}`}
+            aria-label="Verify by Human"
+          >
+            <User size={16} />
+            Verify by Human
+          </button>
+        </div>
+        
+        {showManualVerify && (
+          <div className="status-buttons">
+            <button
+              onClick={() => handleStatusChange('true')}
+              className={`btn btn-sm ${claim.status === 'true' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as true"
+            >
+              <Check size={16} />
+              True
+            </button>
+            <button
+              onClick={() => handleStatusChange('false')}
+              className={`btn btn-sm ${claim.status === 'false' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as false"
+            >
+              <X size={16} />
+              False
+            </button>
+            <button
+              onClick={() => handleStatusChange('assumption')}
+              className={`btn btn-sm ${claim.status === 'assumption' ? 'btn-primary' : 'btn-ghost'}`}
+              aria-label="Mark as assumption"
+            >
+              <AlertCircle size={16} />
+              Assumption
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/components/claims/ProgressIndicator.tsx">
+import React from 'react';
+import { Check, X, AlertCircle, HelpCircle, Globe, FileText } from 'lucide-react';
+import { Claim } from '../../types';
+
+interface ProgressIndicatorProps {
+  claims: Claim[];
+  processingTime?: number | null;
+}
+
+export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorProps) {
+  // Count claims by status and by verification type
+  const statusCounts = claims.reduce(
+    (acc, claim) => {
+      acc[claim.status]++;
+      acc.total++;
+      if (claim.verificationState === 'verified-perplexity') {
+        acc.aiVerified++;
+      }
+      if (claim.verificationState === 'verified-document') {
+        acc.docVerified++;
+      }
+      return acc;
+    },
+    { unverified: 0, true: 0, false: 0, assumption: 0, aiVerified: 0, docVerified: 0, total: 0 }
+  );
+
+  // A claim is "verified" if it is true/false/assumption OR AI-verified OR doc-verified
+  const verifiedCount = statusCounts.true + statusCounts.false + statusCounts.assumption + statusCounts.aiVerified + statusCounts.docVerified;
+  const progressPercentage = claims.length > 0 ? (verifiedCount / claims.length) * 100 : 0;
+
+  return (
+    <div className="progress-indicator">
+      <div className="progress-header">
+        <h3 className="headline-3">Verification Progress</h3>
+        {processingTime && (
+          <p className="processing-time">
+            Extracted in {(processingTime / 1000).toFixed(1)}s
+          </p>
+        )}
+      </div>
+
+      <div className="progress-bar-container">
+        <div className="progress-bar">
+          <div
+            className="progress-fill"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+        <p className="progress-text">
+          {verifiedCount} of {claims.length} claims verified ({Math.round(progressPercentage)}%)
+        </p>
+      </div>
+
+      <div className="status-summary">
+        <div className="status-item">
+          <div className="status-icon true">
+            <Check size={16} />
+          </div>
+          <span className="status-label">True</span>
+          <span className="status-count">{statusCounts.true}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon false">
+            <X size={16} />
+          </div>
+          <span className="status-label">False</span>
+          <span className="status-count">{statusCounts.false}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon assumption">
+            <AlertCircle size={16} />
+          </div>
+          <span className="status-label">Assumptions</span>
+          <span className="status-count">{statusCounts.assumption}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon unverified">
+            <HelpCircle size={16} />
+          </div>
+          <span className="status-label">Unverified</span>
+          <span className="status-count">{statusCounts.unverified}</span>
+        </div>
+        <div className="status-item">
+          <div className="status-icon ai-verified">
+            <Globe size={16} />
+          </div>
+          <span className="status-label">AI Verified</span>
+          <span className="status-count">{statusCounts.aiVerified}</span>
+        </div>
+        {statusCounts.docVerified > 0 && (
+          <div className="status-item">
+            <div className="status-icon doc-verified">
+              <FileText size={16} />
+            </div>
+            <span className="status-label">Doc Verified</span>
+            <span className="status-count">{statusCounts.docVerified}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="client/src/contexts/AppContext.tsx">
+import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import { AppState, AppAction } from '../types';
+
+interface AppContextType {
+  state: AppState;
+  dispatch: React.Dispatch<AppAction>;
+}
+
+const initialState: AppState = {
+  currentStep: 'input',
+  memoText: '',
+  claims: [],
+  isLoading: false,
+  error: null,
+  processingTime: null,
+  companyType: 'external',
+  perplexityResults: {},
+  documents: [],
+  documentVerificationResults: {},
+};
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case 'SET_STEP':
+      return { ...state, currentStep: action.payload };
+    
+    case 'SET_MEMO_TEXT':
+      return { ...state, memoText: action.payload };
+    
+    case 'SET_CLAIMS':
+      return { 
+        ...state, 
+        claims: action.payload.map(claim => ({
+          ...claim,
+          verificationState: claim.verificationState || 'idle'
+        }))
+      };
+    
+    case 'UPDATE_CLAIM_STATUS':
+      return {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.id
+            ? { ...claim, status: action.payload.status }
+            : claim
+        ),
+      };
+    
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
+    
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
+    
+    case 'SET_PROCESSING_TIME':
+      return { ...state, processingTime: action.payload };
+    
+    case 'SET_COMPANY_TYPE':
+      return { ...state, companyType: action.payload };
+    
+    case 'SET_PERPLEXITY_RESULT':
+      return {
+        ...state,
+        perplexityResults: {
+          ...state.perplexityResults,
+          [action.payload.claimId]: action.payload.result,
+        },
+      };
+    
+    case 'SET_CLAIM_VERIFYING':
+      console.log('SET_CLAIM_VERIFYING action:', action.payload);
+      const verificationType = action.payload.verificationType || 'perplexity';
+      const verifyingState = {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.claimId
+            ? {
+                ...claim,
+                verificationState: action.payload.isVerifying
+                  ? (`verifying-${verificationType}` as const)
+                  : (claim.verificationState === `verifying-${verificationType}` ? ('idle' as const) : claim.verificationState),
+              }
+            : claim
+        ),
+      };
+      console.log('After SET_CLAIM_VERIFYING, claim state:', verifyingState.claims.find(c => c.id === action.payload.claimId));
+      return verifyingState;
+    
+    case 'SET_CLAIM_VERIFIED':
+      console.log('SET_CLAIM_VERIFIED action:', action.payload);
+      const updatedState = {
+        ...state,
+        claims: state.claims.map(claim => {
+          if (claim.id === action.payload.claimId) {
+            const updatedClaim = { ...claim, verificationState: 'verified-perplexity' as const };
+            console.log('Updating claim from:', claim);
+            console.log('Updating claim to:', updatedClaim);
+            return updatedClaim;
+          }
+          return claim;
+        }),
+        perplexityResults: {
+          ...state.perplexityResults,
+          [action.payload.claimId]: action.payload.result,
+        },
+      };
+      console.log('Updated state claims:', updatedState.claims);
+      console.log('Updated claim:', updatedState.claims.find(c => c.id === action.payload.claimId));
+      return updatedState;
+    
+    case 'SET_CLAIM_VERIFICATION_ERROR':
+      return {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.claimId
+            ? { ...claim, verificationState: 'verification-error' }
+            : claim
+        ),
+        error: action.payload.error,
+      };
+    
+    case 'SET_DOCUMENTS':
+      return { ...state, documents: action.payload };
+    
+    case 'ADD_DOCUMENT':
+      return { ...state, documents: [...state.documents, action.payload] };
+    
+    case 'REMOVE_DOCUMENT':
+      return {
+        ...state,
+        documents: state.documents.filter(doc => doc.id !== action.payload),
+      };
+    
+    case 'SET_DOCUMENT_VERIFICATION_RESULT':
+      return {
+        ...state,
+        documentVerificationResults: {
+          ...state.documentVerificationResults,
+          [action.payload.claimId]: action.payload.result,
+        },
+      };
+    
+    case 'SET_CLAIM_DOCUMENT_VERIFIED':
+      console.log('SET_CLAIM_DOCUMENT_VERIFIED action:', action.payload);
+      return {
+        ...state,
+        claims: state.claims.map(claim =>
+          claim.id === action.payload.claimId
+            ? { ...claim, verificationState: 'verified-document' as const }
+            : claim
+        ),
+        documentVerificationResults: {
+          ...state.documentVerificationResults,
+          [action.payload.claimId]: action.payload.result,
+        },
+      };
+    
+    case 'RESET':
+      return initialState;
+    
+    default:
+      return state;
+  }
+}
+
+interface AppProviderProps {
+  children: ReactNode;
+}
+
+export function AppProvider({ children }: AppProviderProps) {
+  const [state, dispatch] = useReducer(appReducer, initialState);
+
+  return (
+    <AppContext.Provider value={{ state, dispatch }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+export function useApp() {
+  const context = useContext(AppContext);
+  if (context === undefined) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+}
+</file>
+
+<file path="client/src/types/index.ts">
+export interface Claim {
+  id: string;
+  text: string;
+  status: 'unverified' | 'true' | 'false' | 'assumption';
+  category: 'financial' | 'market' | 'operational' | 'other';
+  confidence: number; // 1-10
+  range: [number, number]; // Character positions
+  verificationState?: 'idle' | 'verifying-perplexity' | 'verified-perplexity' | 'verifying-document' | 'verified-document' | 'verification-error';
+}
+
+export interface PerplexityResult {
+  status: 'verified_true' | 'verified_false' | 'partially_true' | 'needs_context' | 'cannot_find_answer';
+  reasoning: string;
+  sources: string[];
+  confidence?: number;
+  searchQuery: string;
+  searchPrompt?: string; // The actual prompt sent to Perplexity
+  timestamp: string;
+}
+
+export interface Document {
+  id: string;
+  fileName: string;
+  fileType: 'excel' | 'pdf';
+  uploadTime: string;
+  processed: boolean;
+  chunkCount?: number;
+}
+
+export interface DocumentVerificationResult {
+  status: 'found' | 'not_found' | 'contradicted';
+  reasoning: string;
+  citations: Array<{
+    fileName: string;
+    location: string; // "Sheet: Revenue, Cell: B15" or "Page: 23"
+    content: string; // actual content found
+  }>;
+  confidence: number;
+  timestamp: string;
+}
+
+export interface AppState {
+  currentStep: 'input' | 'verify';
+  memoText: string;
+  claims: Claim[];
+  isLoading: boolean;
+  error: string | null;
+  processingTime: number | null;
+  companyType: 'external' | 'internal';
+  perplexityResults: Record<string, PerplexityResult>;
+  documents: Document[];
+  documentVerificationResults: Record<string, DocumentVerificationResult>;
+}
+
+export type AppAction =
+  | { type: 'SET_STEP'; payload: 'input' | 'verify' }
+  | { type: 'SET_MEMO_TEXT'; payload: string }
+  | { type: 'SET_CLAIMS'; payload: Claim[] }
+  | { type: 'UPDATE_CLAIM_STATUS'; payload: { id: string; status: Claim['status'] } }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_PROCESSING_TIME'; payload: number }
+  | { type: 'SET_COMPANY_TYPE'; payload: 'external' | 'internal' }
+  | { type: 'SET_PERPLEXITY_RESULT'; payload: { claimId: string; result: PerplexityResult } }
+  | { type: 'SET_CLAIM_VERIFYING'; payload: { claimId: string; isVerifying: boolean; verificationType?: 'perplexity' | 'document' } }
+  | { type: 'SET_CLAIM_VERIFIED'; payload: { claimId: string; result: PerplexityResult } }
+  | { type: 'SET_CLAIM_VERIFICATION_ERROR'; payload: { claimId: string; error: string } }
+  | { type: 'SET_DOCUMENTS'; payload: Document[] }
+  | { type: 'ADD_DOCUMENT'; payload: Document }
+  | { type: 'REMOVE_DOCUMENT'; payload: string }
+  | { type: 'SET_DOCUMENT_VERIFICATION_RESULT'; payload: { claimId: string; result: DocumentVerificationResult } }
+  | { type: 'SET_CLAIM_DOCUMENT_VERIFIED'; payload: { claimId: string; result: DocumentVerificationResult } }
+  | { type: 'RESET' };
+
+export interface ClaimExtractionResponse {
+  claims: Claim[];
+  processingTime: number;
+  memoLength: number;
+  claimCount: number;
+}
+
+export interface SampleMemoResponse {
+  sampleMemo: string;
+  description: string;
+}
 </file>
 
 </files>

@@ -86,6 +86,9 @@ export function MemoHighlighter() {
           Back to Input
         </button>
         <h2 className="headline-2">Verify Investment Memo Claims</h2>
+        <p className="body-medium" style={{ color: 'var(--color-gray-600)', marginTop: '8px' }}>
+          Showing the {claims.length} most critical "make or break" claims that could impact the investment decision
+        </p>
       </div>
 
       <div className={`highlighter-content ${isMemoCollapsed ? 'memo-collapsed' : ''}`}>
