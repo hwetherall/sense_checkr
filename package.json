@@ -9,8 +9,6 @@
     "client": "cd client && npm start",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install",
     "postinstall": "cd server && npm ci",
-    "prebuild": "cd client && npm ci",
-    "build": "cd client && npm run build",
     "start": "cd server && npm start"
   },
   "devDependencies": {
