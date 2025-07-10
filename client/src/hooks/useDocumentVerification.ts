@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { DocumentVerificationResult } from '../types';
+import { apiUrl } from '../config/api';
 
 export function useDocumentVerification() {
   const { state, dispatch } = useApp();
@@ -31,7 +32,7 @@ export function useDocumentVerification() {
       });
 
       try {
-        const response = await fetch('/api/documents/verify', {
+        const response = await fetch(apiUrl('/api/documents/verify'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

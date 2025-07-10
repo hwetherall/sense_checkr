@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { Document } from '../types';
+import { apiUrl } from '../config/api';
 
 export function useDocumentManagement() {
   const { state, dispatch } = useApp();
@@ -17,7 +18,7 @@ export function useDocumentManagement() {
         formData.append('documents', file);
       });
 
-      const response = await fetch('/api/documents/upload', {
+      const response = await fetch(apiUrl('/api/documents/upload'), {
         method: 'POST',
         body: formData,
       });
@@ -60,7 +61,7 @@ export function useDocumentManagement() {
 
   const fetchDocuments = useCallback(async () => {
     try {
-      const response = await fetch('/api/documents');
+      const response = await fetch(apiUrl('/api/documents'));
       const data = await response.json();
 
       if (!response.ok) {
@@ -78,7 +79,7 @@ export function useDocumentManagement() {
 
   const deleteDocument = useCallback(async (documentId: string) => {
     try {
-      const response = await fetch(`/api/documents/${documentId}`, {
+      const response = await fetch(apiUrl(`/api/documents/${documentId}`), {
         method: 'DELETE',
       });
 

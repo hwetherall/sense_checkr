@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { PerplexityResult } from '../types';
+import { apiUrl } from '../config/api';
 
 export function usePerplexityVerification() {
   const { state, dispatch } = useApp();
@@ -19,7 +20,7 @@ export function usePerplexityVerification() {
 
       try {
         
-        const response = await fetch('/api/claims/verify', {
+        const response = await fetch(apiUrl('/api/claims/verify'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
