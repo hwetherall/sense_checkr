@@ -2,8 +2,7 @@ import { useState, useCallback } from 'react';
 import axios from 'axios';
 import { Claim, ClaimExtractionResponse, SampleMemoResponse } from '../types';
 import { useApp } from '../contexts/AppContext';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import { apiUrl } from '../config/api';
 
 export function useClaimExtraction() {
   const { dispatch } = useApp();
@@ -16,7 +15,7 @@ export function useClaimExtraction() {
 
     try {
       const response = await axios.post<ClaimExtractionResponse>(
-        `${API_BASE_URL}/api/claims/extract`,
+        apiUrl('/api/claims/extract'),
         { memoText },
         {
           headers: {
@@ -54,7 +53,7 @@ export function useClaimExtraction() {
   const fetchSampleMemo = useCallback(async () => {
     try {
       const response = await axios.get<SampleMemoResponse>(
-        `${API_BASE_URL}/api/claims/sample`
+        apiUrl('/api/claims/sample')
       );
       return response.data.sampleMemo;
     } catch (error) {
