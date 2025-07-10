@@ -697,7 +697,9 @@
   right: 0;
   width: 320px;
   max-width: 90vw;
-  background: var(--color-surface-raised);
+  background: #ffffff;
+  backdrop-filter: none;
+  opacity: 1;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
@@ -708,7 +710,7 @@
 .prompt-tooltip-header {
   padding: 0.75rem 1rem 0.5rem 1rem;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-background);
+  background: #f8f9fa;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   font-size: 0.875rem;
   color: var(--color-text);
@@ -720,9 +722,10 @@
   overflow-y: auto;
   font-size: 0.8125rem;
   line-height: 1.5;
-  color: var(--color-text-secondary);
+  color: #333333;
   white-space: pre-wrap;
   word-wrap: break-word;
+  background: #ffffff;
 }
 
 /* Arrow for tooltip */
@@ -747,7 +750,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-bottom: 6px solid var(--color-surface-raised);
+  border-bottom: 6px solid #ffffff;
 }
 
 /* Document Repository in Input Page */

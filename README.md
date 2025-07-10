@@ -4,7 +4,7 @@ A sophisticated B2B investment memo fact-checking application that helps financi
 
 ## Features
 
-- **AI-Powered Claim Extraction**: Automatically extracts factual claims from investment memos using OpenRouter API with GPT-4o-mini
+- **AI-Powered Claim Extraction**: Automatically extracts factual claims from investment memos using OpenRouter API with GPT-4.1-mini
 - **Professional UI**: Clean, newspaper-like layout with The Economist-inspired design
 - **Split-Screen Verification**: View original memo alongside extracted claims with synchronized highlighting
 - **Claim Categorization**: Automatic categorization into financial, market, operational, and other claims
@@ -18,7 +18,7 @@ A sophisticated B2B investment memo fact-checking application that helps financi
 - **Styling**: CSS Modules with custom design system
 - **State Management**: React Context + useReducer
 - **Icons**: Lucide React
-- **LLM Integration**: OpenRouter API with GPT-4o-mini
+- **LLM Integration**: OpenRouter API with GPT-4.1-mini
 
 ## Prerequisites
 
