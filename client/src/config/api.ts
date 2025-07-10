@@ -9,24 +9,42 @@ export const getApiBaseUrl = (): string => {
   }
   
   // In production, use the backend URL from environment variable
-  const backendUrl = process.env.REACT_APP_API_URL;
+  let backendUrl = process.env.REACT_APP_API_URL;
   
   if (!backendUrl) {
     console.error('REACT_APP_API_URL environment variable is not set');
     console.error('Please set REACT_APP_API_URL to your Railway backend URL');
     // Fallback to prevent complete failure
-    return 'https://sense-checkr-production.up.railway.app';
+    backendUrl = 'https://sense-checkr-production.up.railway.app';
   }
   
+  // Ensure the URL has the correct protocol
+  if (!backendUrl.startsWith('http://') && !backendUrl.startsWith('https://')) {
+    backendUrl = `https://${backendUrl}`;
+  }
+  
+  // Remove trailing slash if present
+  backendUrl = backendUrl.replace(/\/$/, '');
+  
+  console.log('API Base URL:', backendUrl);
   return backendUrl;
 };
 
 // Helper function to build API URLs
 export const apiUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
+  
+  // In development, just return the endpoint (proxy handles it)
+  if (isDevelopment) {
+    return endpoint;
+  }
+  
   // Remove leading slash if present to avoid double slashes
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
-  return baseUrl ? `${baseUrl}/${cleanEndpoint}` : `/${cleanEndpoint}`;
+  const fullUrl = `${baseUrl}/${cleanEndpoint}`;
+  
+  console.log('API URL:', fullUrl);
+  return fullUrl;
 };
 
 // Export the base URL for direct use
