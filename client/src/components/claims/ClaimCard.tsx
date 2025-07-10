@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Check, X, AlertCircle, HelpCircle, Globe, FileText, User, Loader, ExternalLink, Info } from 'lucide-react';
+import { Check, X, AlertCircle, HelpCircle, Globe, FileText, User, Loader, Info } from 'lucide-react';
 import { Claim } from '../../types';
 import { useClaimExtraction } from '../../hooks/useClaimExtraction';
 import { usePerplexityVerification } from '../../hooks/usePerplexityVerification';

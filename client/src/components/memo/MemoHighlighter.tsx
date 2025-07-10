@@ -3,7 +3,6 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { ClaimsList } from '../claims/ClaimsList';
 import { ProgressIndicator } from '../claims/ProgressIndicator';
-import { Claim } from '../../types';
 
 export function MemoHighlighter() {
   const { state, dispatch } = useApp();
