@@ -22,6 +22,7 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
   } = useDocumentVerification();
   const [showManualVerify, setShowManualVerify] = useState(false);
   const [showPromptTooltip, setShowPromptTooltip] = useState(false);
+  const [showAllSources, setShowAllSources] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   // Close tooltip when clicking outside
@@ -310,8 +311,30 @@ export function ClaimCard({ claim, onHover }: ClaimCardProps) {
                 }
               })}
               {perplexityResult.sources.length > 2 && (
-                <span className="more-sources">+{perplexityResult.sources.length - 2} more</span>
+                <button 
+                  className="more-sources" 
+                  onClick={() => setShowAllSources(!showAllSources)}
+                >
+                  {showAllSources ? 'Hide' : `+${perplexityResult.sources.length - 2} more`}
+                </button>
               )}
+            </div>
+          )}
+          {showAllSources && (
+            <div className="all-sources-list">
+              <ul>
+                {perplexityResult.sources.map((source, index) => (
+                  <li key={index}>
+                    <a 
+                      href={source} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      {source}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
