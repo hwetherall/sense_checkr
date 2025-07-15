@@ -467,6 +467,52 @@
 .more-sources {
   color: var(--color-gray-500);
   font-style: italic;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: inherit;
+}
+
+.more-sources:hover {
+  color: var(--color-primary);
+}
+
+/* All Sources List */
+.all-sources-list {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--color-gray-50);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-gray-200);
+}
+
+.all-sources-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.all-sources-list li {
+  margin-bottom: var(--spacing-xs);
+}
+
+.all-sources-list li:last-child {
+  margin-bottom: 0;
+}
+
+.all-sources-list a {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: 12px;
+  word-break: break-all;
+  display: block;
+  padding: 2px 0;
+}
+
+.all-sources-list a:hover {
+  text-decoration: underline;
 }
 
 /* Claim Card Status Classes for Perplexity */

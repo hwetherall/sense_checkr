@@ -90,7 +90,7 @@ export function DocumentUpload() {
               {isUploading ? 'Uploading...' : 'Drop files here or click to upload'}
             </p>
             <p className="upload-hint">
-              Excel (.xlsx, .xls) and PDF files only • Max 5 files • 10MB per file
+              Excel (.xlsx, .xls) and PDF files only • Max 50 files • 10MB per file
             </p>
           </div>
         </label>

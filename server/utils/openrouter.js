@@ -283,6 +283,13 @@ ${memoContext}
   }
 
   async processPerplexityResponse(perplexityResponse, originalClaim) {
+    console.log('Raw Perplexity response:', perplexityResponse);
+    
+    // First, extract any URLs directly from the response
+    const urlRegex = /https?:\/\/[^\s\)]+/g;
+    const extractedSources = perplexityResponse.match(urlRegex) || [];
+    console.log('Extracted sources from response:', extractedSources);
+    
     const systemPrompt = `You are processing a fact-checking response from Perplexity. Extract and structure the information for display.
 
 **ORIGINAL CLAIM:**
@@ -290,6 +297,9 @@ ${originalClaim}
 
 **PERPLEXITY RESPONSE:**
 ${perplexityResponse}
+
+**EXTRACTED URLS FROM RESPONSE:**
+${extractedSources.join('\n')}
 
 **YOUR TASK:**
 Parse this response and return a JSON object with exactly this structure:
@@ -315,9 +325,10 @@ Parse this response and return a JSON object with exactly this structure:
 - Note if information is outdated
 
 **SOURCES ARRAY:**
-- Only include actual URLs found in the Perplexity response
-- Max 3-4 most relevant sources
-- Empty array if no good sources found
+- MUST include ALL URLs from the extracted URLs list above
+- Include any additional URLs found in the Perplexity response
+- Clean up URLs (remove trailing punctuation, parentheses)
+- Empty array only if absolutely no URLs found
 
 **CONFIDENCE SCORING:**
 - 8-10: Multiple recent, authoritative sources
@@ -344,14 +355,30 @@ ${perplexityResponse}`;
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
           
+          // Ensure we have sources - if the AI didn't include them, use our extracted ones
+          let finalSources = Array.isArray(parsed.sources) ? parsed.sources : [];
+          if (finalSources.length === 0 && extractedSources.length > 0) {
+            finalSources = extractedSources;
+            console.log('AI missed sources, using extracted ones:', finalSources);
+          }
+          
+          // Clean up sources
+          finalSources = finalSources.map(url => {
+            // Remove trailing punctuation and parentheses
+            return url.replace(/[,.\)]+$/, '');
+          }).filter(url => url.startsWith('http'));
+          
           // Validate required fields and provide defaults
-          return {
+          const result = {
             status: parsed.status || 'cannot_find_answer',
             reasoning: parsed.reasoning || 'Unable to process verification results',
-            sources: Array.isArray(parsed.sources) ? parsed.sources : [],
+            sources: finalSources,
             confidence: parsed.confidence || 5,
             searchQuery: parsed.searchQuery || 'Unknown search query'
           };
+          
+          console.log('Final processed result:', result);
+          return result;
         } else {
           throw new Error('No JSON found in response');
         }
@@ -383,14 +410,18 @@ ${perplexityResponse}`;
       status = 'needs_context';
     }
     
-    // Extract URLs
-    const urlRegex = /https?:\/\/[^\s]+/g;
-    const sources = perplexityResponse.match(urlRegex) || [];
+    // Extract URLs with improved regex
+    const urlRegex = /https?:\/\/[^\s\)\]\,\;]+/g;
+    const sources = (perplexityResponse.match(urlRegex) || [])
+      .map(url => url.replace(/[,.\)\]\;]+$/, '')) // Clean trailing punctuation
+      .filter(url => url.startsWith('http'));
+    
+    console.log('Fallback extracted sources:', sources);
     
     return {
       status,
       reasoning: perplexityResponse.substring(0, 300) + '...',
-      sources: sources.slice(0, 3), // Max 3 sources
+      sources: sources.slice(0, 10), // Allow more sources
       confidence: 5,
       searchQuery: 'Processed from Perplexity response'
     };

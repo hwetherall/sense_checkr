@@ -102,10 +102,10 @@ export function useDocumentManagement() {
   const validateFiles = useCallback((files: File[]): { valid: boolean; error?: string } => {
     // Check file count
     const currentCount = state.documents.length;
-    if (currentCount + files.length > 5) {
+    if (currentCount + files.length > 50) {
       return {
         valid: false,
-        error: `Maximum 5 documents allowed. You can upload ${5 - currentCount} more document(s).`,
+        error: `Maximum 50 documents allowed. You can upload ${50 - currentCount} more document(s).`,
       };
     }
 

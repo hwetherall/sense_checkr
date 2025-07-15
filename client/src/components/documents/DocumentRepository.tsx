@@ -42,7 +42,7 @@ export function DocumentRepository() {
       <div className="repository-header">
         <div className="header-content">
           <h3>Document Repository</h3>
-          <span className="document-count">{documents.length} / 5 documents</span>
+          <span className="document-count">{documents.length} / 50 documents</span>
         </div>
         <button
           className="btn btn-sm btn-ghost toggle-btn"

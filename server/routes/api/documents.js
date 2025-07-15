@@ -35,7 +35,7 @@ const upload = multer({
   storage,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 5 // Maximum 5 files
+    files: 50 // Maximum 50 files
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['.xlsx', '.xls', '.pdf'];
@@ -51,7 +51,7 @@ const upload = multer({
 
 // Upload documents
 router.post('/upload', (req, res, next) => {
-  upload.array('documents', 5)(req, res, (err) => {
+  upload.array('documents', 50)(req, res, (err) => {
     if (err) {
       console.error('Multer error:', err);
       
@@ -60,7 +60,7 @@ router.post('/upload', (req, res, next) => {
         if (err.code === 'LIMIT_FILE_SIZE') {
           return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
         } else if (err.code === 'LIMIT_FILE_COUNT') {
-          return res.status(400).json({ error: 'Too many files. Maximum 5 files allowed.' });
+          return res.status(400).json({ error: 'Too many files. Maximum 50 files allowed.' });
         } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
           return res.status(400).json({ error: 'Unexpected field name. Use "documents" for file uploads.' });
         }
@@ -91,13 +91,13 @@ async function handleUpload(req, res, next) {
 
     // Check current document count
     const currentDocs = documentProcessor.getAllDocuments();
-    if (currentDocs.length + req.files.length > 5) {
+    if (currentDocs.length + req.files.length > 50) {
       // Clean up uploaded files
       for (const file of req.files) {
         await fs.unlink(file.path).catch(console.error);
       }
       return res.status(400).json({ 
-        error: 'Maximum 5 documents allowed. Please delete some documents first.' 
+        error: 'Maximum 50 documents allowed. Please delete some documents first.' 
       });
     }
 
