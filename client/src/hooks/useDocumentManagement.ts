@@ -99,6 +99,29 @@ export function useDocumentManagement() {
     }
   }, [dispatch]);
 
+  const clearAllDocuments = useCallback(async () => {
+    try {
+      const response = await fetch(apiUrl('/api/documents/clear'), {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to clear documents');
+      }
+
+      // Clear client state
+      dispatch({ type: 'SET_DOCUMENTS', payload: [] });
+      return true;
+    } catch (error) {
+      console.error('Error clearing documents:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to clear documents';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      return false;
+    }
+  }, [dispatch]);
+
   const validateFiles = useCallback((files: File[]): { valid: boolean; error?: string } => {
     // Check file count
     const currentCount = state.documents.length;
@@ -142,6 +165,7 @@ export function useDocumentManagement() {
     uploadDocuments,
     fetchDocuments,
     deleteDocument,
+    clearAllDocuments,
     validateFiles,
   };
 } 

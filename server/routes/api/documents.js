@@ -174,6 +174,43 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Clear all documents
+router.delete('/clear', async (req, res) => {
+  try {
+    console.log('Clearing all documents...');
+    
+    // Get all documents first
+    const documents = documentProcessor.getAllDocuments();
+    
+    // Delete all documents from processor
+    documents.forEach(doc => {
+      documentProcessor.deleteDocument(doc.id);
+    });
+    
+    // Try to clean up physical files
+    try {
+      const files = await fs.readdir(uploadDir);
+      for (const file of files) {
+        await fs.unlink(path.join(uploadDir, file)).catch(console.error);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up files:', cleanupError);
+      // Continue even if file cleanup fails
+    }
+    
+    console.log(`Cleared ${documents.length} documents`);
+    
+    res.json({
+      success: true,
+      message: `Successfully cleared ${documents.length} documents`,
+      totalDocuments: 0
+    });
+  } catch (error) {
+    console.error('Error clearing documents:', error);
+    res.status(500).json({ error: 'Failed to clear documents' });
+  }
+});
+
 // Delete a document
 router.delete('/:id', async (req, res) => {
   try {

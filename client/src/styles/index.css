@@ -995,6 +995,146 @@
   min-height: calc(100vh - 100px);
 }
 
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  color: var(--color-gray-500);
+  transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+.modal-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-body {
+  padding: var(--spacing-lg);
+}
+
+.modal-description {
+  margin: 0 0 var(--spacing-lg) 0;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+/* Export Modal Specific */
+.export-modal .form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.export-modal .form-label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.export-modal .required {
+  color: var(--color-error);
+}
+
+.export-modal .form-input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  transition: border-color var(--transition-fast);
+}
+
+.export-modal .form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.export-modal .form-input.error {
+  border-color: var(--color-error);
+}
+
+.export-modal .form-input:disabled {
+  background-color: var(--color-gray-50);
+  cursor: not-allowed;
+}
+
+.export-modal .form-error {
+  display: block;
+  margin-top: var(--spacing-xs);
+  font-size: 12px;
+  color: var(--color-error);
+}
+
+.export-modal .form-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  margin-top: var(--spacing-lg);
+}
+
+/* Progress Indicator Updates */
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-md);
+}
+
+.progress-title-section {
+  flex: 1;
+}
+
+.export-btn {
+  flex-shrink: 0;
+  margin-left: var(--spacing-md);
+}
+
 /* Responsive Styles */
 @media (max-width: 1200px) {
   .claims-grid {
@@ -1136,4 +1276,87 @@
     padding: var(--spacing-md);
     padding-top: 0;
   }
+} 
+
+.repository-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+}
+
+.repository-header .header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.repository-header .header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.repository-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.document-count {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.reset-btn {
+  color: var(--color-error);
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.reset-btn:hover {
+  background-color: rgba(220, 20, 60, 0.1);
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.reset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-btn {
+  padding: 0.5rem;
+}
+
+/* Reset Modal Specific */
+.reset-modal .modal-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-error);
+}
+
+.reset-modal .modal-description {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+/* Button styles */
+.btn-error {
+  background-color: var(--color-error);
+  color: white;
+  border: 1px solid var(--color-error);
+}
+
+.btn-error:hover {
+  background-color: #dc1f4e;
+  border-color: #dc1f4e;
+}
+
+.btn-error:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 } 
