@@ -21,15 +21,32 @@ export function LinkInput() {
 
   const handleFileUpload = useCallback(
     (file: File) => {
-      if (file.type !== 'text/plain') {
-        dispatch({ type: 'SET_ERROR', payload: 'Please upload a .txt file' });
+      // Accept both .txt and .json files
+      if (file.type !== 'text/plain' && file.type !== 'application/json') {
+        dispatch({ type: 'SET_ERROR', payload: 'Please upload a .txt or .json file' });
         return;
       }
 
       const reader = new FileReader();
       reader.onload = (e) => {
         const content = e.target?.result as string;
-        dispatch({ type: 'SET_LINK_TEXT', payload: content });
+        
+        // Handle JSON files by parsing and extracting text content
+        if (file.type === 'application/json') {
+          try {
+            const jsonData = JSON.parse(content);
+            // Convert JSON to formatted text for link extraction
+            const jsonText = JSON.stringify(jsonData, null, 2);
+            dispatch({ type: 'SET_LINK_TEXT', payload: jsonText });
+          } catch (error) {
+            dispatch({ type: 'SET_ERROR', payload: 'Invalid JSON file format' });
+            return;
+          }
+        } else {
+          // Handle .txt files as before
+          dispatch({ type: 'SET_LINK_TEXT', payload: content });
+        }
+        
         if (error) {
           dispatch({ type: 'SET_ERROR', payload: null });
         }
@@ -106,7 +123,7 @@ Please verify each link to check for any potential hallucinations or invalid ref
       <div className="memo-input-header">
         <h2 className="headline-2">Link Verification Input</h2>
         <p className="subtitle">
-          Paste text containing markdown links or upload a .txt file to verify all links for potential hallucinations
+          Paste text containing markdown links or plain URLs, or upload a .txt or .json file to verify all links for potential hallucinations
         </p>
       </div>
 
@@ -130,12 +147,12 @@ Please verify each link to check for any potential hallucinations or invalid ref
                 </label>
               </p>
               <p className="body-small" style={{ color: 'var(--color-gray-600)' }}>
-                Text files (.txt) only • Max 1 file • 5MB limit
+                Text (.txt) and JSON (.json) files only • Max 1 file • 5MB limit
               </p>
               <input
                 id="file-upload"
                 type="file"
-                accept=".txt"
+                accept=".txt,.json"
                 onChange={handleFileInputChange}
                 className="hidden-file-input"
               />
@@ -149,7 +166,7 @@ Please verify each link to check for any potential hallucinations or invalid ref
             value={linkText}
             onChange={handleTextChange}
             className="form-textarea memo-textarea"
-            placeholder="Paste your text with markdown links here..."
+            placeholder="Paste your text with markdown links or plain URLs here..."
             aria-describedby="character-count"
           />
           <div className="form-footer">

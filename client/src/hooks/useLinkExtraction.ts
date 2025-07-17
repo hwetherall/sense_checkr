@@ -14,9 +14,12 @@ export function useLinkExtraction() {
     try {
       // Extract markdown links using regex
       const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+      // Extract plain URLs using regex
+      const urlRegex = /https?:\/\/[^\s\]},;"']+/g;
       const links: Link[] = [];
       let match;
       
+      // First, extract markdown-formatted links
       while ((match = markdownLinkRegex.exec(linkText)) !== null) {
         const linkId = `link-${Date.now()}-${links.length}`;
         links.push({
@@ -25,6 +28,22 @@ export function useLinkExtraction() {
           url: match[2],  // Link URL
           status: 'unverified'
         });
+      }
+      
+      // Then, extract plain URLs that aren't already part of markdown links
+      const markdownUrls = new Set(links.map(link => link.url));
+      while ((match = urlRegex.exec(linkText)) !== null) {
+        const url = match[0];
+        // Skip if this URL is already captured as part of a markdown link
+        if (!markdownUrls.has(url)) {
+          const linkId = `link-${Date.now()}-${links.length}`;
+          links.push({
+            id: linkId,
+            text: `Plain URL: ${url}`, // Generate descriptive text for plain URLs
+            url: url,
+            status: 'unverified'
+          });
+        }
       }
 
       dispatch({ type: 'SET_LINKS', payload: links });
