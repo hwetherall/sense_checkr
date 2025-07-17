@@ -17,7 +17,7 @@ function AppContent() {
     if (appMode === 'memo') {
       return 'Extracting claims from your investment memo...';
     }
-    return 'Extracting links from your text...';
+    return 'Extracting links and matching them with claims...';
   };
 
   const renderContent = () => {

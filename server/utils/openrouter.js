@@ -522,6 +522,90 @@ Please verify if the claim "${claimText}" is supported by these documents.`;
       throw error;
     }
   }
+
+  async matchLinksWithClaims(linkText, links) {
+    const systemPrompt = `You are an expert at analyzing text and matching source URLs with the specific claims they support. Your task is to identify which claim each URL is intended to support as evidence.
+
+**YOUR TASK:**
+For each URL provided, identify the specific claim or statement in the text that this URL is meant to support or verify. Look at the context around each URL to understand what factual assertion it's backing up.
+
+**ANALYSIS APPROACH:**
+1. Find each URL in the text
+2. Read the sentence/paragraph containing the URL
+3. Identify the specific factual claim that precedes or is associated with that URL
+4. Extract that claim as a clear, standalone statement
+
+**RETURN FORMAT:**
+Return a JSON array where each object has:
+{
+  "linkId": "the link ID from the input",
+  "url": "the URL",
+  "supportedClaim": "The specific claim this URL supports (clear, complete sentence)",
+  "contextSnippet": "Brief snippet of surrounding text for reference",
+  "confidence": number from 1-10 (how confident you are in this match)
+}
+
+**GUIDELINES:**
+- Be specific: "Market size is $13B" not "Market information"
+- Include key details: timeframes, numbers, company names
+- If a URL doesn't clearly support a specific claim, use confidence: 1-3
+- If multiple claims are near one URL, pick the most directly supported one
+- Make claims standalone (don't say "this company" - use the actual company name)
+
+Return only valid JSON, no other text.`;
+
+    const userPrompt = `Analyze this text and match each URL with the specific claim it supports:
+
+**TEXT:**
+${linkText}
+
+**URLs TO MATCH:**
+${links.map(link => `ID: ${link.id}, URL: ${link.url}`).join('\n')}
+
+Return the JSON array of matches.`;
+
+    try {
+      const response = await this.makeRequest([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ], 0.3, this.groqModel);
+
+      const content = response.choices[0].message.content.trim();
+      
+      try {
+        // Extract JSON from response
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const linkClaimMatches = JSON.parse(jsonMatch[0]);
+          
+          // Validate the response structure
+          const validMatches = linkClaimMatches.filter(match => 
+            match.linkId && match.url && match.supportedClaim
+          );
+          
+          console.log(`Successfully matched ${validMatches.length}/${links.length} links with claims`);
+          
+          return {
+            linkClaimMatches: validMatches
+          };
+        } else {
+          throw new Error('No JSON array found in response');
+        }
+      } catch (parseError) {
+        console.error('Failed to parse link-claim matches:', parseError);
+        // Return empty matches if parsing fails
+        return {
+          linkClaimMatches: []
+        };
+      }
+    } catch (error) {
+      console.error('Error matching links with claims:', error);
+      // Return empty matches if request fails
+      return {
+        linkClaimMatches: []
+      };
+    }
+  }
 }
 
 module.exports = new OpenRouterClient(); 

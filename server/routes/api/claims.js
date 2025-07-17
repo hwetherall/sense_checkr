@@ -136,6 +136,55 @@ router.post('/verify', async (req, res, next) => {
   }
 });
 
+// POST /api/claims/match-sources
+router.post('/match-sources', async (req, res, next) => {
+  try {
+    const { linkText, links } = req.body;
+
+    // Validate input
+    if (!linkText || typeof linkText !== 'string') {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: linkText is required and must be a string',
+          status: 400
+        }
+      });
+    }
+
+    if (!links || !Array.isArray(links)) {
+      return res.status(400).json({
+        error: {
+          message: 'Invalid request: links is required and must be an array',
+          status: 400
+        }
+      });
+    }
+
+    // Log request
+    console.log(`Processing claim-source matching request - ${links.length} links`);
+
+    const startTime = Date.now();
+
+    // Use OpenRouter to match links with claims
+    const matchingResult = await openRouterClient.matchLinksWithClaims(linkText, links);
+
+    const processingTime = Date.now() - startTime;
+
+    // Log success
+    console.log(`Successfully matched ${links.length} links with claims in ${processingTime}ms`);
+
+    // Send response
+    res.json({
+      linkClaimMatches: matchingResult.linkClaimMatches,
+      processingTime: processingTime
+    });
+
+  } catch (error) {
+    // Pass error to error handler middleware
+    next(error);
+  }
+});
+
 // GET /api/claims/sample
 router.get('/sample', (req, res) => {
   const sampleMemo = `TechFlow Solutions represents a compelling investment opportunity in the enterprise workflow automation sector. The company achieved $47.2M in Annual Recurring Revenue (ARR) as of Q3 2024, demonstrating robust 156% year-over-year growth.

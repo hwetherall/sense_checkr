@@ -66,17 +66,51 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
         <div className="claim-text-container">
           <h4 className="claim-title">{link.text}</h4>
         </div>
-        <div className="link-url-container">
-          <a
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="link-url clickable"
-            title="Click to open link in new tab"
-          >
-            {link.url}
-          </a>
-        </div>
+        
+        {/* Display the supported claim if available */}
+        {link.supportedClaim && (
+          <div className="supported-claim-container">
+            <div className="supported-claim">
+              <span className="claim-label">Claim:</span>
+              <span className="claim-text">{link.supportedClaim}</span>
+            </div>
+            <div className="source-info">
+              <span className="source-label">Source:</span>
+              <a
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="source-url clickable"
+                title="Click to open source in new tab"
+              >
+                {link.url}
+              </a>
+            </div>
+            {link.claimConfidence && (
+              <div className="confidence-info">
+                <span className="confidence-label">Match Confidence:</span>
+                <span className={`confidence-score ${link.claimConfidence >= 7 ? 'high' : link.claimConfidence >= 4 ? 'medium' : 'low'}`}>
+                  {link.claimConfidence}/10
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Fallback to original URL display if no supported claim */}
+        {!link.supportedClaim && (
+          <div className="link-url-container">
+            <a
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link-url clickable"
+              title="Click to open link in new tab"
+            >
+              {link.url}
+            </a>
+          </div>
+        )}
       </div>
 
       <div className="claim-actions">

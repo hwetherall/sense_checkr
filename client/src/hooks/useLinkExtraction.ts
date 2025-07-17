@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { Link } from '../types';
 import { useApp } from '../contexts/AppContext';
+import { apiUrl } from '../config/api';
 
 export function useLinkExtraction() {
   const { dispatch } = useApp();
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isMatchingClaims, setIsMatchingClaims] = useState(false);
 
   const extractLinks = useCallback(async (linkText: string) => {
     setIsExtracting(true);
@@ -46,7 +48,14 @@ export function useLinkExtraction() {
         }
       }
 
+      // Set initial links
       dispatch({ type: 'SET_LINKS', payload: links });
+
+      // If we have links, match them with claims
+      if (links.length > 0) {
+        await matchLinksWithClaims(linkText, links);
+      }
+
       dispatch({ type: 'SET_STEP', payload: 'verify' });
 
       return links;
@@ -56,6 +65,57 @@ export function useLinkExtraction() {
       throw error;
     } finally {
       setIsExtracting(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [dispatch]);
+
+  const matchLinksWithClaims = useCallback(async (linkText: string, links: Link[]) => {
+    if (links.length === 0) return;
+
+    setIsMatchingClaims(true);
+    dispatch({ type: 'SET_LOADING', payload: true });
+
+    try {
+      const response = await fetch(apiUrl('/api/claims/match-sources'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          linkText,
+          links: links.map(link => ({ id: link.id, url: link.url }))
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to match links with claims');
+      }
+
+      const data = await response.json();
+      const { linkClaimMatches } = data;
+
+      // Update links with their supported claims
+      const updatedLinks = links.map(link => {
+        const match = linkClaimMatches.find((m: any) => m.linkId === link.id);
+        if (match) {
+          return {
+            ...link,
+            supportedClaim: match.supportedClaim,
+            contextSnippet: match.contextSnippet,
+            claimConfidence: match.confidence
+          };
+        }
+        return link;
+      });
+
+      dispatch({ type: 'SET_LINKS', payload: updatedLinks });
+      console.log(`Successfully matched ${linkClaimMatches.length} links with claims`);
+
+    } catch (error) {
+      console.error('Error matching links with claims:', error);
+      // Don't throw error here, just log it - the link extraction still succeeded
+    } finally {
+      setIsMatchingClaims(false);
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [dispatch]);
@@ -73,6 +133,6 @@ export function useLinkExtraction() {
   return {
     extractLinks,
     updateLinkStatus,
-    isExtracting,
+    isExtracting: isExtracting || isMatchingClaims,
   };
 } 

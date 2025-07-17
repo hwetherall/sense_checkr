@@ -17,14 +17,18 @@ export function LinkHighlighter() {
     let highlightedContent = linkText;
     let processedLinks = [];
 
-    // Process links in reverse order to maintain correct positions
-    const sortedLinks = [...links].sort((a, b) => {
+    // Separate markdown links from plain URLs
+    const markdownLinks = links.filter(link => !link.text.startsWith('Plain URL:'));
+    const plainUrls = links.filter(link => link.text.startsWith('Plain URL:'));
+
+    // Process markdown links first (in reverse order to maintain correct positions)
+    const sortedMarkdownLinks = [...markdownLinks].sort((a, b) => {
       const aIndex = linkText.indexOf(`[${a.text}](${a.url})`);
       const bIndex = linkText.indexOf(`[${b.text}](${b.url})`);
       return bIndex - aIndex;
     });
 
-    sortedLinks.forEach((link) => {
+    sortedMarkdownLinks.forEach((link) => {
       const linkMarkdown = `[${link.text}](${link.url})`;
       const linkIndex = highlightedContent.indexOf(linkMarkdown);
       
@@ -37,6 +41,41 @@ export function LinkHighlighter() {
         
         highlightedContent = beforeLink + highlightedLink + afterLink;
         processedLinks.push(link);
+      }
+    });
+
+    // Process plain URLs (in reverse order by position to maintain correct positions)
+    const sortedPlainUrls = [...plainUrls].sort((a, b) => {
+      const aIndex = highlightedContent.lastIndexOf(a.url);
+      const bIndex = highlightedContent.lastIndexOf(b.url);
+      return bIndex - aIndex;
+    });
+
+    sortedPlainUrls.forEach((link) => {
+      // Find all instances of this URL that aren't already highlighted
+      let searchStartIndex = 0;
+      let urlIndex;
+      
+      while ((urlIndex = highlightedContent.indexOf(link.url, searchStartIndex)) !== -1) {
+        // Check if this URL is already inside a highlighted span
+        const beforeUrl = highlightedContent.substring(0, urlIndex);
+        const openSpanCount = (beforeUrl.match(/<span[^>]*class="highlighted-link/g) || []).length;
+        const closeSpanCount = (beforeUrl.match(/<\/span>/g) || []).length;
+        
+        // If we're not inside a span, highlight this URL
+        if (openSpanCount === closeSpanCount) {
+          const beforeLink = highlightedContent.substring(0, urlIndex);
+          const afterLink = highlightedContent.substring(urlIndex + link.url.length);
+          
+          const isHovered = hoveredLinkId === link.id;
+          const highlightedLink = `<span class="highlighted-link status-${link.status} ${isHovered ? 'hovered' : ''}" data-link-id="${link.id}">${link.url}</span>`;
+          
+          highlightedContent = beforeLink + highlightedLink + afterLink;
+          processedLinks.push(link);
+          break; // Only highlight the first occurrence to avoid duplicates
+        }
+        
+        searchStartIndex = urlIndex + 1;
       }
     });
 

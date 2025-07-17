@@ -13,6 +13,10 @@ export interface Link {
   url: string;
   text: string; // Link text/description
   status: 'unverified' | 'valid' | 'invalid' | 'suspicious';
+  // Claim-source matching fields
+  supportedClaim?: string;
+  contextSnippet?: string;
+  claimConfidence?: number;
 }
 
 export interface PerplexityResult {
