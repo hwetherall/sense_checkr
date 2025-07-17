@@ -90,24 +90,16 @@ export function MemoHighlighter() {
         </p>
       </div>
 
-      <div className={`highlighter-content ${isMemoCollapsed ? 'memo-collapsed' : ''}`}>
-        <div className={`memo-panel ${isMemoCollapsed ? 'collapsed' : ''}`}>
-          <div className="panel-header">
-            <div className="panel-header-content">
-              <h3 className="headline-3">Original Memo</h3>
-              <button
-                onClick={toggleMemoCollapse}
-                className="btn btn-ghost btn-icon collapse-toggle"
-                aria-label={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
-                title={isMemoCollapsed ? 'Expand memo' : 'Collapse memo'}
-              >
-                {isMemoCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-              </button>
+      <div className={`highlighter-content ${isMemoCollapsed ? 'text-collapsed' : ''}`}>
+        <div className={`text-panel ${isMemoCollapsed ? 'collapsed' : ''}`}>
+          {!isMemoCollapsed && (
+            <div className="panel-header">
+              <div className="panel-header-content">
+                <h3 className="headline-3">Original Memo</h3>
+                <p className="body-small">Hover over claims to highlight them in the text</p>
+              </div>
             </div>
-            {!isMemoCollapsed && (
-              <p className="body-small">Hover over claims to highlight them in the text</p>
-            )}
-          </div>
+          )}
           {!isMemoCollapsed && (
             <div ref={memoRef} className="memo-text-container">
               <p className="memo-text">{highlightedMemo}</p>
@@ -116,8 +108,13 @@ export function MemoHighlighter() {
         </div>
 
         <div className="claims-panel">
-          <div className="sticky-progress-wrapper">
-            <ProgressIndicator claims={claims} processingTime={processingTime} />
+          <div className="progress-wrapper">
+            <ProgressIndicator 
+              claims={claims} 
+              processingTime={processingTime} 
+              isTextCollapsed={isMemoCollapsed}
+              onToggleTextCollapse={toggleMemoCollapse}
+            />
           </div>
           <div className="claims-list-wrapper">
             <ClaimsList claims={claims} onClaimHover={setHoveredClaimId} />

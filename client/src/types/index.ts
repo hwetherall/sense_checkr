@@ -8,6 +8,13 @@ export interface Claim {
   verificationState?: 'idle' | 'verifying-perplexity' | 'verified-perplexity' | 'verifying-document' | 'verified-document' | 'verification-error';
 }
 
+export interface Link {
+  id: string;
+  url: string;
+  text: string; // Link text/description
+  status: 'unverified' | 'valid' | 'invalid' | 'suspicious';
+}
+
 export interface PerplexityResult {
   status: 'verified_true' | 'verified_false' | 'partially_true' | 'needs_context' | 'cannot_find_answer';
   reasoning: string;
@@ -40,6 +47,7 @@ export interface DocumentVerificationResult {
 }
 
 export interface AppState {
+  appMode: 'memo' | 'links'; // New tab mode
   currentStep: 'input' | 'verify';
   memoText: string;
   claims: Claim[];
@@ -50,9 +58,13 @@ export interface AppState {
   perplexityResults: Record<string, PerplexityResult>;
   documents: Document[];
   documentVerificationResults: Record<string, DocumentVerificationResult>;
+  // Link verification state
+  linkText: string;
+  links: Link[];
 }
 
 export type AppAction =
+  | { type: 'SET_APP_MODE'; payload: 'memo' | 'links' }
   | { type: 'SET_STEP'; payload: 'input' | 'verify' }
   | { type: 'SET_MEMO_TEXT'; payload: string }
   | { type: 'SET_CLAIMS'; payload: Claim[] }
@@ -70,6 +82,10 @@ export type AppAction =
   | { type: 'REMOVE_DOCUMENT'; payload: string }
   | { type: 'SET_DOCUMENT_VERIFICATION_RESULT'; payload: { claimId: string; result: DocumentVerificationResult } }
   | { type: 'SET_CLAIM_DOCUMENT_VERIFIED'; payload: { claimId: string; result: DocumentVerificationResult } }
+  // Link verification actions (simplified for human-only verification)
+  | { type: 'SET_LINK_TEXT'; payload: string }
+  | { type: 'SET_LINKS'; payload: Link[] }
+  | { type: 'UPDATE_LINK_STATUS'; payload: { id: string; status: Link['status'] } }
   | { type: 'RESET' };
 
 export interface ClaimExtractionResponse {
@@ -77,6 +93,12 @@ export interface ClaimExtractionResponse {
   processingTime: number;
   memoLength: number;
   claimCount: number;
+}
+
+export interface LinkExtractionResponse {
+  links: Link[];
+  textLength: number;
+  linkCount: number;
 }
 
 export interface SampleMemoResponse {

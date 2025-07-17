@@ -787,6 +787,19 @@
   background-color: var(--color-gray-400);
 }
 
+/* Link status icons */
+.status-icon.valid {
+  background-color: var(--color-success);
+}
+
+.status-icon.invalid {
+  background-color: var(--color-error);
+}
+
+.status-icon.suspicious {
+  background-color: var(--color-warning);
+}
+
 .status-label {
   flex: 1;
   font-size: 14px;
@@ -798,6 +811,19 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--color-secondary);
+}
+
+/* Progress Summary */
+.progress-summary {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--spacing-md);
+}
+
+.summary-text {
+  text-align: center;
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-gray-600);
 }
 
 /* Memo Highlighter */
@@ -815,20 +841,38 @@
 
 .highlighter-content {
   display: grid;
-  grid-template-columns: 60% 40%;
+  grid-template-columns: auto 1fr;
   gap: var(--spacing-xl);
   align-items: start;
+  min-height: calc(100vh - 200px);
 }
 
-.memo-panel,
 .claims-panel {
-  height: 80vh;
-  overflow-y: auto;
-  padding: var(--spacing-lg);
   background-color: white;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   position: relative;
+  min-height: calc(100vh - 200px);
+}
+
+.text-panel {
+  background-color: white;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  padding: var(--spacing-lg);
+  min-height: calc(100vh - 200px);
+  transition: all var(--transition-medium) ease-in-out;
+}
+
+/* Legacy support for memo-panel */
+.memo-panel {
+  background-color: white;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  padding: var(--spacing-lg);
+  min-height: calc(100vh - 200px);
 }
 
 .panel-header {
@@ -897,59 +941,82 @@
   background-color: var(--color-gray-100);
 }
 
-/* Collapsed State */
+/* Text Panel Collapse from Right */
 .highlighter-content {
   transition: grid-template-columns var(--transition-medium) ease-in-out;
 }
 
-.highlighter-content.memo-collapsed {
-  grid-template-columns: auto 1fr;
+.highlighter-content.text-collapsed {
+  grid-template-columns: 0fr 1fr;
 }
 
-.memo-panel {
-  transition: all var(--transition-medium) ease-in-out;
-  transform-origin: left center;
-}
-
+/* Collapsed Panel - Complete Hiding */
+.text-panel.collapsed,
 .memo-panel.collapsed {
-  width: 80px;
-  min-width: 80px;
-  padding: var(--spacing-md);
-  overflow: hidden;
-}
-
-.memo-panel.collapsed .panel-header {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
-.memo-panel.collapsed .headline-3 {
-  display: none;
-}
-
-.memo-panel.collapsed .collapse-toggle {
-  margin: 0 auto;
-  display: block;
-}
-
-/* Full width claims panel when memo is collapsed */
-.highlighter-content.memo-collapsed .claims-panel {
-  max-width: 100%;
-}
-
-/* Sticky Progress Indicator */
-.sticky-progress-wrapper {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background-color: white;
-  margin: calc(-1 * var(--spacing-lg)) calc(-1 * var(--spacing-lg)) 0 calc(-1 * var(--spacing-lg));
+  width: 0;
+  min-width: 0;
   padding: 0;
-  /* Add a small overlap to ensure no gap */
-  padding-bottom: 4px;
-  /* Extend background to cover any potential gaps */
-  margin-bottom: -4px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Panel Collapse Button */
+.panel-collapse-btn {
+  position: absolute;
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
+  background: var(--color-background);
+  border: 1px solid var(--color-gray-300);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  z-index: 10;
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-collapse-btn:hover {
+  background: var(--color-gray-100);
+  border-color: var(--color-primary);
+  transform: scale(1.05);
+}
+
+.panel-collapse-btn.collapsed {
+  top: 50%;
+  transform: translateY(-50%);
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+}
+
+.panel-collapse-btn.collapsed:hover {
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+/* Legacy support for memo-collapsed */
+.highlighter-content.memo-collapsed {
+  grid-template-columns: 0fr 1fr;
+}
+
+/* Progress Indicator Wrapper */
+.progress-wrapper {
+  background-color: white;
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-gray-200);
+}
+
+/* Legacy Sticky Progress Wrapper (deprecated) */
+.sticky-progress-wrapper {
+  background-color: white;
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-gray-200);
 }
 
 /* Add shadow when scrolled */
@@ -980,8 +1047,7 @@
 }
 
 .claims-list-wrapper {
-  padding: var(--spacing-lg);
-  padding-top: 0;
+  padding: 0 var(--spacing-lg) var(--spacing-lg) var(--spacing-lg);
 }
 
 /* App Container */
@@ -1146,24 +1212,22 @@
     gap: var(--spacing-lg);
   }
   
-  /* Override collapsed state on tablets */
-  .highlighter-content.memo-collapsed {
+  /* Stack panels vertically on tablets */
+  .highlighter-content.text-collapsed {
     grid-template-columns: 1fr;
   }
   
-  .memo-panel.collapsed {
-    width: 100%;
-    min-width: auto;
-    padding: var(--spacing-lg);
+  .text-panel.collapsed {
+    display: none;
   }
   
-  .memo-panel.collapsed .headline-3 {
-    display: block;
-  }
-  
-  .memo-panel.collapsed .collapse-toggle {
-    margin: 0;
-    display: inline-flex;
+  .panel-collapse-btn.collapsed {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    transform: none;
+    margin: var(--spacing-md) auto;
   }
   
   .memo-panel,
@@ -1359,4 +1423,448 @@
 .btn-error:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-} 
+}
+
+/* LinkInput Component Styles */
+.file-drop-zone {
+  border: 2px dashed var(--color-gray-300);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xl);
+  text-align: center;
+  background: var(--color-gray-50);
+  transition: all var(--transition-fast);
+  margin-bottom: var(--spacing-lg);
+}
+
+.file-drop-zone.drag-over {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.drop-zone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-gray-600);
+}
+
+.file-upload-trigger {
+  color: var(--color-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.file-upload-trigger:hover {
+  color: var(--color-primary-dark);
+}
+
+.hidden-file-input {
+  position: absolute;
+  left: -9999px;
+  visibility: hidden;
+}
+
+/* Form divider improvements for LinkInput */
+.form-divider {
+  display: flex;
+  align-items: center;
+  margin: var(--spacing-xl) 0;
+  text-align: center;
+}
+
+.form-divider::before,
+.form-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-gray-300);
+}
+
+.divider-text {
+  padding: 0 var(--spacing-md);
+  color: var(--color-gray-500);
+  font-size: 14px;
+  background: var(--color-background);
+  font-weight: 600;
+}
+
+/* LinkInput layout improvements */
+.memo-input-container .form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-md);
+  gap: var(--spacing-md);
+}
+
+.memo-input-container .form-actions {
+  margin-top: var(--spacing-xl);
+  display: flex;
+  justify-content: center;
+}
+
+.memo-input-container .memo-textarea {
+  min-height: 200px;
+  resize: vertical;
+  margin-bottom: var(--spacing-lg);
+}
+
+.character-count {
+  font-size: 14px;
+  color: var(--color-gray-600);
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .memo-input-container .form-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+  
+  .character-count {
+    align-self: flex-end;
+  }
+}
+
+/* Header Component Styles */
+.header {
+  background-color: white;
+  border-bottom: 2px solid var(--color-primary);
+  padding: var(--spacing-lg) 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+}
+
+.header-brand {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.brand-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: bold;
+  color: var(--color-secondary);
+  margin: 0;
+}
+
+.brand-icon {
+  color: var(--color-primary);
+}
+
+.brand-subtitle {
+  font-size: 14px;
+  color: var(--color-gray-600);
+  margin: 4px 0 var(--spacing-md) 48px;
+}
+
+.header-tabs {
+  display: flex;
+  align-items: center;
+  margin-left: 32px;
+  padding-top: var(--spacing-sm);
+  gap: 0;
+  margin-bottom: -25px;
+}
+
+.tab-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-gray-500);
+  position: relative;
+  border-bottom: 3px solid transparent;
+}
+
+.tab-option:hover {
+  color: var(--color-secondary);
+}
+
+.tab-option.active {
+  color: var(--color-secondary);
+  font-weight: 600;
+  border-bottom-color: var(--color-primary);
+}
+
+.tab-option svg {
+  transition: color var(--transition-fast);
+}
+
+.tab-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-gray-300);
+  margin: 0 var(--spacing-xs);
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: var(--spacing-sm);
+}
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-medium);
+}
+
+.step.active {
+  background-color: var(--color-gray-100);
+}
+
+.step.completed .step-number {
+  color: var(--color-success);
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--color-gray-200);
+  font-weight: 600;
+  font-size: 14px;
+  transition: all var(--transition-medium);
+}
+
+.step.active .step-number {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.step-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-secondary);
+}
+
+.step-connector {
+  width: 40px;
+  height: 2px;
+  background-color: var(--color-gray-300);
+}
+
+@media (max-width: 1024px) {
+  .header-content {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .header-brand {
+    order: 1;
+    text-align: center;
+  }
+  
+  .header-nav {
+    order: 2;
+    margin-top: var(--spacing-md);
+  }
+  
+  .brand-subtitle {
+    margin-left: 0;
+    text-align: center;
+  }
+  
+  .header-tabs {
+    margin-left: 0;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+  
+  .tab-option {
+    font-size: 12px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+  
+  .step-label {
+    display: none;
+  }
+  
+  .step {
+    padding: var(--spacing-xs);
+  }
+}
+
+/* LinkCard Component Styles */
+.link-card {
+  /* Inherits styles from .claim-card in components.css */
+}
+
+.link-url-container {
+  margin-top: var(--spacing-sm);
+}
+
+.link-url {
+  display: block;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  color: var(--color-gray-600);
+  background: var(--color-gray-100);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-gray-200);
+  word-break: break-all;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.link-url.clickable {
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.link-url.clickable:hover {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+.link-url.clickable:active {
+  transform: translateY(1px);
+}
+
+
+
+.verification-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.verification-buttons .btn {
+  flex: 1;
+  min-width: auto;
+}
+
+.verification-buttons .btn:disabled {
+  opacity: 1;
+}
+
+.verification-buttons .btn.btn-primary:disabled {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .verification-buttons {
+    flex-direction: column;
+  }
+  
+  .verification-buttons .btn {
+    flex: none;
+  }
+}
+
+/* Link Highlighting Styles */
+.highlighted-link {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.highlighted-link:hover,
+.highlighted-link.hovered {
+  background: var(--color-primary);
+  color: white;
+  transform: scale(1.02);
+}
+
+.highlighted-link.status-valid {
+  background: var(--color-success-light);
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.highlighted-link.status-invalid {
+  background: var(--color-error-light);
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.highlighted-link.status-suspicious {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+/* Progress Title with Toggle Button */
+.title-with-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.title-with-toggle .headline-3 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.progress-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  background: transparent;
+  border: 1px solid var(--color-gray-300);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--color-gray-600);
+  flex-shrink: 0;
+}
+
+.progress-collapse-btn:hover {
+  background: var(--color-gray-100);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: scale(1.05);
+}

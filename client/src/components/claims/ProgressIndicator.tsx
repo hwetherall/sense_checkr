@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, AlertCircle, HelpCircle, Globe, FileText, Download } from 'lucide-react';
+import { Check, X, AlertCircle, HelpCircle, Globe, FileText, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Claim } from '../../types';
 import { usePDFExport } from '../../hooks/usePDFExport';
 import { ExportModal } from '../common/ExportModal';
@@ -7,9 +7,11 @@ import { ExportModal } from '../common/ExportModal';
 interface ProgressIndicatorProps {
   claims: Claim[];
   processingTime: number | null;
+  isTextCollapsed?: boolean;
+  onToggleTextCollapse?: () => void;
 }
 
-export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorProps) {
+export function ProgressIndicator({ claims, processingTime, isTextCollapsed, onToggleTextCollapse }: ProgressIndicatorProps) {
   const { generatePDF } = usePDFExport();
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -51,7 +53,19 @@ export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorP
       <div className="progress-indicator">
         <div className="progress-header">
           <div className="progress-title-section">
-            <h3 className="headline-3">Verification Progress</h3>
+            <div className="title-with-toggle">
+              {onToggleTextCollapse && (
+                <button
+                  onClick={onToggleTextCollapse}
+                  className="progress-collapse-btn"
+                  aria-label={isTextCollapsed ? 'Expand memo' : 'Collapse memo'}
+                  title={isTextCollapsed ? 'Expand memo' : 'Collapse memo'}
+                >
+                  {isTextCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+                </button>
+              )}
+              <h3 className="headline-3">Verification Progress</h3>
+            </div>
             {processingTime && (
               <p className="processing-time">
                 Extracted in {(processingTime / 1000).toFixed(1)}s

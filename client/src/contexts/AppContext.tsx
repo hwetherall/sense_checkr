@@ -7,6 +7,7 @@ interface AppContextType {
 }
 
 const initialState: AppState = {
+  appMode: 'memo',
   currentStep: 'input',
   memoText: '',
   claims: [],
@@ -17,12 +18,23 @@ const initialState: AppState = {
   perplexityResults: {},
   documents: [],
   documentVerificationResults: {},
+  // Link verification state
+  linkText: '',
+  links: [],
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case 'SET_APP_MODE':
+      return { 
+        ...state, 
+        appMode: action.payload,
+        currentStep: 'input', // Reset to input when switching modes
+        error: null // Clear any errors
+      };
+    
     case 'SET_STEP':
       return { ...state, currentStep: action.payload };
     
@@ -155,6 +167,28 @@ function appReducer(state: AppState, action: AppAction): AppState {
           ...state.documentVerificationResults,
           [action.payload.claimId]: action.payload.result,
         },
+      };
+    
+    // Link verification actions
+    case 'SET_LINK_TEXT':
+      return { ...state, linkText: action.payload };
+    
+    case 'SET_LINKS':
+      return { 
+        ...state, 
+        links: action.payload.map(link => ({
+          ...link
+        }))
+      };
+    
+    case 'UPDATE_LINK_STATUS':
+      return {
+        ...state,
+        links: state.links.map(link =>
+          link.id === action.payload.id
+            ? { ...link, status: action.payload.status }
+            : link
+        ),
       };
     
     case 'RESET':
