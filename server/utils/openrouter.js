@@ -188,7 +188,7 @@ Return a JSON array with EXACTLY 10 items. Focus on FACTUAL CLAIMS with sufficie
   }
 
   async preprocessClaimForSearch(claimText, memoContext, companyType) {
-    const systemPrompt = `You are writing a research prompt for Perplexity to fact-check an investment memo claim. Your job is to give Perplexity enough context to provide a useful verification.
+    const systemPrompt = `You are writing a research prompt for a fact-checking AI like Perplexity. Your job is to create a single, well-contextualized prompt that asks the AI to verify a claim and provide specific, high-quality sources.
 
 **CLAIM TO VERIFY:**
 {claimText}
@@ -201,21 +201,22 @@ Return a JSON array with EXACTLY 10 items. Focus on FACTUAL CLAIMS with sufficie
 - internal: Internal corporate venture/project
 
 **YOUR TASK:**
-Write a single, well-contextualized prompt for Perplexity. Follow this pattern:
+Write a single, well-contextualized prompt for the fact-checking AI. Follow this pattern:
 
 ❌ BAD: "Is market size $13B?"
-✅ GOOD: "I am analyzing the pet food market in Alberta, and have a claim that this market is worth $13B. How accurate is this claim based on current market data?"
+✅ GOOD: "I am analyzing the pet food market in Alberta, and have a claim that this market is worth $13B. How accurate is this claim based on current market data? Please provide 3-5 specific, full URLs to reliable sources (e.g., reports, articles) that support your reasoning. Use markdown citations like [1]: https://specific.url/page."
 
 ❌ BAD: "Does TechFlow have $47M ARR?"  
-✅ GOOD: "I'm evaluating TechFlow Solutions, a workflow automation company, and they claim $47.2M in Annual Recurring Revenue as of Q3 2024. Can you verify this revenue figure and any recent financial performance data?"
+✅ GOOD: "I'm evaluating TechFlow Solutions, a workflow automation company, and they claim $47.2M in Annual Recurring Revenue as of Q3 2024. Can you verify this revenue figure? Crucially, please provide direct, full URLs to the specific reports, press releases, or financial statements that contain this information. Use markdown citations for all sources."
 
-**IMPORTANT:**
-- Include company name, industry, and specific context
-- Mention if it's an internal venture vs external company
-- Be specific about timeframes, numbers, and what exactly needs verification
-- Ask for verification, not just information
+**CRITICAL INSTRUCTIONS FOR YOUR PROMPT:**
+1.  **Be Specific:** Include company name, industry, and context from the memo.
+2.  **Mention Company Type:** Note if it's an internal or external company.
+3.  **Demand Sources Explicitly:** Your prompt MUST explicitly ask the AI to provide several (3-5) full, deep-linked URLs.
+4.  **Specify URL Format:** Instruct the AI to use markdown citations (e.g., \`[1]: https://example.com/report.pdf\`) for clarity.
+5.  **Focus on Verification:** Ask for verification of the claim, not just general information.
 
-Write only the prompt for Perplexity, nothing else.`;
+Write ONLY the prompt for the fact-checking AI, nothing else.`;
 
     const userPrompt = `**CLAIM TO VERIFY:**
 ${claimText}
@@ -285,12 +286,44 @@ ${memoContext}
   async processPerplexityResponse(perplexityResponse, originalClaim) {
     console.log('Raw Perplexity response:', perplexityResponse);
     
-    // First, extract any URLs directly from the response
-    const urlRegex = /https?:\/\/[^\s\)]+/g;
-    const extractedSources = perplexityResponse.match(urlRegex) || [];
+    // Improved URL extraction with multiple patterns
+    const urlPatterns = [
+      // Standard HTTP/HTTPS URLs with paths
+      /https?:\/\/[^\s\)\]\,\;\"\'\`\|\<\>]+/g,
+      // URLs that might be wrapped in markdown or other formatting
+      /\[([^\]]*)\]\(([^)]+)\)/g,
+      // Citations with URLs
+      /\[[^\]]*\]:\s*(https?:\/\/[^\s\)\]\,\;\"\'\`\|\<\>]+)/g
+    ];
+    
+    let extractedSources = [];
+    
+    // Extract URLs using multiple patterns
+    urlPatterns.forEach(pattern => {
+      const matches = perplexityResponse.matchAll(pattern);
+      for (const match of matches) {
+        if (pattern.source.includes('\\]\\(')) {
+          // Markdown link format [text](url)
+          extractedSources.push(match[2]);
+        } else if (pattern.source.includes('\\]:')) {
+          // Citation format [text]: url
+          extractedSources.push(match[1]);
+        } else {
+          // Direct URL
+          extractedSources.push(match[0]);
+        }
+      }
+    });
+    
+    // Remove duplicates and clean URLs
+    extractedSources = [...new Set(extractedSources)]
+      .map(url => url.replace(/[,.\)\]\;\"\'\`\|\<\>]+$/, '')) // Clean trailing punctuation
+      .filter(url => url.startsWith('http') && url.length > 10) // More permissive length requirement
+      .slice(0, 10); // Limit to 10 sources max
+    
     console.log('Extracted sources from response:', extractedSources);
     
-    const systemPrompt = `You are processing a fact-checking response from Perplexity. Extract and structure the information for display.
+    const systemPrompt = `You are a meticulous data processor. Your task is to analyze a fact-checking response from a research AI (like Perplexity) and structure its findings into a clean JSON object. Your primary focus is on accurately extracting the reasoning and, most importantly, any **real, verifiable source URLs**.
 
 **ORIGINAL CLAIM:**
 ${originalClaim}
@@ -298,46 +331,34 @@ ${originalClaim}
 **PERPLEXITY RESPONSE:**
 ${perplexityResponse}
 
-**EXTRACTED URLS FROM RESPONSE:**
-${extractedSources.join('\n')}
+**PRE-EXTRACTED URLS (FOR REFERENCE):**
+${extractedSources.join('\\n')}
+
+**CRITICAL INSTRUCTIONS FOR SOURCE HANDLING:**
+1.  **Extract, Don't Invent:** Your main job is to find and extract URLs that the AI provided. **DO NOT create, guess, or "complete" URLs.** If the AI provides a partial link, extract it as is or discard it if it's unusable. It is better to have fewer, real URLs than many fake ones.
+2.  **Preserve Full Paths:** Always preserve the complete URL, including the path, query parameters, and fragments (e.g., \`https://example.com/reports/market-size-2024.pdf?region=na#page=4\`). Do not shorten URLs to just the domain.
+3.  **Use Pre-Extracted List:** The pre-extracted URL list is your primary source of truth. Ensure every valid URL from that list is included in your final JSON output. You may also find additional URLs in the text.
+4.  **Prioritize Deep Links:** When both a deep link (e.g., \`.../report/ai-dogs\`) and a domain link (e.g., \`.../report/\`) are present for the same source, always prefer the more specific (deeper) link.
 
 **YOUR TASK:**
-Parse this response and return a JSON object with exactly this structure:
+Parse the Perplexity response and return a single, valid JSON object with the following structure. Do not add any other text outside the JSON.
 
 {
   "status": "verified_true" | "verified_false" | "partially_true" | "needs_context" | "cannot_find_answer",
-  "reasoning": "2-3 sentence summary of why this verification status was chosen",
-  "sources": ["array", "of", "source", "URLs", "found"],
-  "searchQuery": "summary of what was actually searched for",
-  "confidence": number from 1-10 based on source quality and recency
+  "reasoning": "A 2-3 sentence summary of the AI's reasoning for its conclusion.",
+  "sources": ["An array of the full, complete, and real source URLs found in the response."],
+  "searchQuery": "A brief summary of what the AI searched for.",
+  "confidence": "A number from 1-10 based on source quality and recency."
 }
 
-**VERIFICATION STATUS GUIDELINES:**
-- verified_true: Multiple reliable sources confirm the claim
-- verified_false: Reliable sources contradict the claim  
-- partially_true: Some elements confirmed, others not or outdated
-- needs_context: Information found but requires additional context
-- cannot_find_answer: Insufficient reliable information available
+**GUIDELINES:**
+- **Reasoning:** Be concise and specific.
+- **Sources:** If no URLs are found in the response, and the pre-extracted list is empty, return an empty array \`[]\`.
+- **Confidence:** Score 8-10 for multiple, recent, authoritative sources. Score 1-4 for weak or conflicting sources.
 
-**REASONING SHOULD:**
-- Be concise but specific
-- Mention key contradictions or confirmations
-- Note if information is outdated
+Return only the valid JSON object.`;
 
-**SOURCES ARRAY:**
-- MUST include ALL URLs from the extracted URLs list above
-- Include any additional URLs found in the Perplexity response
-- Clean up URLs (remove trailing punctuation, parentheses)
-- Empty array only if absolutely no URLs found
-
-**CONFIDENCE SCORING:**
-- 8-10: Multiple recent, authoritative sources
-- 5-7: Some good sources but limited or older data
-- 1-4: Weak sources or conflicting information
-
-Return only valid JSON, no other text.`;
-
-    const userPrompt = `Process this Perplexity response and return the structured JSON:
+    const userPrompt = `Process this Perplexity response and return the structured JSON with COMPLETE URLs:
 
 ${perplexityResponse}`;
 
@@ -362,11 +383,24 @@ ${perplexityResponse}`;
             console.log('AI missed sources, using extracted ones:', finalSources);
           }
           
-          // Clean up sources
+          // Enhanced URL cleaning while preserving paths
           finalSources = finalSources.map(url => {
-            // Remove trailing punctuation and parentheses
-            return url.replace(/[,.\)]+$/, '');
-          }).filter(url => url.startsWith('http'));
+            // Remove only trailing punctuation that's clearly not part of the URL
+            return url.replace(/[,.\)\]\;\"\'\`\|\<\>]+$/, '');
+          }).filter(url => {
+            // Much more permissive validation - just ensure it's a valid HTTP(S) URL
+            const isValid = url.startsWith('http') && 
+                           url.length > 10 && 
+                           !url.match(/\s/); // No spaces
+            
+            if (!isValid) {
+              console.log('Filtered out URL:', url, 'Reasons: startsWith http?', url.startsWith('http'), 'length > 10?', url.length > 10, 'no spaces?', !url.match(/\s/));
+            }
+            return isValid;
+          });
+          
+          console.log('Sources before filtering:', Array.isArray(parsed.sources) ? parsed.sources : extractedSources);
+          console.log('Sources after filtering:', finalSources);
           
           // Validate required fields and provide defaults
           const result = {
@@ -377,7 +411,7 @@ ${perplexityResponse}`;
             searchQuery: parsed.searchQuery || 'Unknown search query'
           };
           
-          console.log('Final processed result:', result);
+          console.log('Final processed result with deep links:', result);
           return result;
         } else {
           throw new Error('No JSON found in response');
@@ -410,18 +444,39 @@ ${perplexityResponse}`;
       status = 'needs_context';
     }
     
-    // Extract URLs with improved regex
-    const urlRegex = /https?:\/\/[^\s\)\]\,\;]+/g;
-    const sources = (perplexityResponse.match(urlRegex) || [])
-      .map(url => url.replace(/[,.\)\]\;]+$/, '')) // Clean trailing punctuation
-      .filter(url => url.startsWith('http'));
+    // Enhanced URL extraction for fallback
+    const urlPatterns = [
+      /https?:\/\/[^\s\)\]\,\;\"\'\`\|\<\>]+/g,
+      /\[([^\]]*)\]\(([^)]+)\)/g,
+      /\[[^\]]*\]:\s*(https?:\/\/[^\s\)\]\,\;\"\'\`\|\<\>]+)/g
+    ];
     
-    console.log('Fallback extracted sources:', sources);
+    let sources = [];
+    urlPatterns.forEach(pattern => {
+      const matches = perplexityResponse.matchAll(pattern);
+      for (const match of matches) {
+        if (pattern.source.includes('\\]\\(')) {
+          sources.push(match[2]);
+        } else if (pattern.source.includes('\\]:')) {
+          sources.push(match[1]);
+        } else {
+          sources.push(match[0]);
+        }
+      }
+    });
+    
+    // Clean and filter sources
+    const extractedSources = [...new Set(sources)]
+      .map(url => url.replace(/[,.\\)\\];\\"'\\`|<>]+$/, '')) // Clean trailing punctuation
+      .filter(url => url.startsWith('http') && url.length > 10) // More permissive length requirement
+      .slice(0, 10); // Limit to 10 sources max
+    
+    console.log('Fallback extracted sources with deep links:', extractedSources);
     
     return {
       status,
       reasoning: perplexityResponse.substring(0, 300) + '...',
-      sources: sources.slice(0, 10), // Allow more sources
+      sources: extractedSources,
       confidence: 5,
       searchQuery: 'Processed from Perplexity response'
     };

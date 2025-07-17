@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Check, X, AlertCircle, HelpCircle, Globe, FileText, Download } from 'lucide-react';
+import { Check, X, AlertCircle, HelpCircle, FileText, Download } from 'lucide-react';
 import { Claim } from '../../types';
 import { usePDFExport } from '../../hooks/usePDFExport';
 import { ExportModal } from '../common/ExportModal';
+import { useApp } from '../../contexts/AppContext';
 
 interface ProgressIndicatorProps {
   claims: Claim[];
@@ -11,27 +12,90 @@ interface ProgressIndicatorProps {
 
 export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorProps) {
   const { generatePDF } = usePDFExport();
+  const { state } = useApp();
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Count claims by status and by verification type
-  const statusCounts = claims.reduce(
+  // Count claims by actual verification outcomes
+  const verificationCounts = claims.reduce(
     (acc, claim) => {
-      acc[claim.status]++;
       acc.total++;
-      if (claim.verificationState === 'verified-perplexity') {
-        acc.aiVerified++;
+      
+      // Check for document verification results first (takes precedence)
+      const documentResult = state.documentVerificationResults[claim.id];
+      if (documentResult) {
+        switch (documentResult.status) {
+          case 'found':
+            acc.verifiedTrue++;
+            break;
+          case 'contradicted':
+            acc.verifiedFalse++;
+            break;
+          case 'not_found':
+            acc.notFound++;
+            break;
+        }
+        return acc;
       }
-      if (claim.verificationState === 'verified-document') {
-        acc.docVerified++;
+      
+      // Check for Perplexity verification results
+      const perplexityResult = state.perplexityResults[claim.id];
+      if (perplexityResult) {
+        switch (perplexityResult.status) {
+          case 'verified_true':
+            acc.verifiedTrue++;
+            break;
+          case 'verified_false':
+            acc.verifiedFalse++;
+            break;
+          case 'partially_true':
+            acc.partiallyTrue++;
+            break;
+          case 'needs_context':
+            acc.needsContext++;
+            break;
+          case 'cannot_find_answer':
+            acc.notFound++;
+            break;
+        }
+        return acc;
       }
+      
+      // Check manual verification status
+      switch (claim.status) {
+        case 'true':
+          acc.verifiedTrue++;
+          break;
+        case 'false':
+          acc.verifiedFalse++;
+          break;
+        case 'assumption':
+          acc.assumptions++;
+          break;
+        case 'unverified':
+        default:
+          acc.unverified++;
+          break;
+      }
+      
       return acc;
     },
-    { unverified: 0, true: 0, false: 0, assumption: 0, aiVerified: 0, docVerified: 0, total: 0 }
+    { 
+      verifiedTrue: 0, 
+      verifiedFalse: 0, 
+      partiallyTrue: 0, 
+      needsContext: 0, 
+      notFound: 0, 
+      assumptions: 0, 
+      unverified: 0, 
+      total: 0 
+    }
   );
 
-  // A claim is "verified" if it is true/false/assumption OR AI-verified OR doc-verified
-  const verifiedCount = statusCounts.true + statusCounts.false + statusCounts.assumption + statusCounts.aiVerified + statusCounts.docVerified;
+  // A claim is "verified" if it has any verification result
+  const verifiedCount = verificationCounts.verifiedTrue + verificationCounts.verifiedFalse + 
+                       verificationCounts.partiallyTrue + verificationCounts.needsContext + 
+                       verificationCounts.notFound + verificationCounts.assumptions;
   const progressPercentage = claims.length > 0 ? (verifiedCount / claims.length) * 100 : 0;
 
   const handleExport = async (projectName: string, chapterName: string) => {
@@ -82,49 +146,62 @@ export function ProgressIndicator({ claims, processingTime }: ProgressIndicatorP
 
         <div className="status-summary">
           <div className="status-item">
-            <div className="status-icon true">
+            <div className="status-icon verified-true">
               <Check size={16} />
             </div>
-            <span className="status-label">True</span>
-            <span className="status-count">{statusCounts.true}</span>
+            <span className="status-label">Verified True</span>
+            <span className="status-count">{verificationCounts.verifiedTrue}</span>
           </div>
           <div className="status-item">
-            <div className="status-icon false">
+            <div className="status-icon verified-false">
               <X size={16} />
             </div>
-            <span className="status-label">False</span>
-            <span className="status-count">{statusCounts.false}</span>
+            <span className="status-label">Verified False</span>
+            <span className="status-count">{verificationCounts.verifiedFalse}</span>
           </div>
-          <div className="status-item">
-            <div className="status-icon assumption">
-              <AlertCircle size={16} />
-            </div>
-            <span className="status-label">Assumptions</span>
-            <span className="status-count">{statusCounts.assumption}</span>
-          </div>
-          <div className="status-item">
-            <div className="status-icon unverified">
-              <HelpCircle size={16} />
-            </div>
-            <span className="status-label">Unverified</span>
-            <span className="status-count">{statusCounts.unverified}</span>
-          </div>
-          {statusCounts.aiVerified > 0 && (
+          {verificationCounts.partiallyTrue > 0 && (
             <div className="status-item">
-              <div className="status-icon ai-verified">
-                <Globe size={16} />
+              <div className="status-icon partially-true">
+                <AlertCircle size={16} />
               </div>
-              <span className="status-label">AI Verified</span>
-              <span className="status-count">{statusCounts.aiVerified}</span>
+              <span className="status-label">Partially True</span>
+              <span className="status-count">{verificationCounts.partiallyTrue}</span>
             </div>
           )}
-          {statusCounts.docVerified > 0 && (
+          {verificationCounts.needsContext > 0 && (
             <div className="status-item">
-              <div className="status-icon doc-verified">
+              <div className="status-icon needs-context">
+                <HelpCircle size={16} />
+              </div>
+              <span className="status-label">Needs Context</span>
+              <span className="status-count">{verificationCounts.needsContext}</span>
+            </div>
+          )}
+          {verificationCounts.notFound > 0 && (
+            <div className="status-item">
+              <div className="status-icon not-found">
                 <FileText size={16} />
               </div>
-              <span className="status-label">Doc Verified</span>
-              <span className="status-count">{statusCounts.docVerified}</span>
+              <span className="status-label">Not Found</span>
+              <span className="status-count">{verificationCounts.notFound}</span>
+            </div>
+          )}
+          {verificationCounts.assumptions > 0 && (
+            <div className="status-item">
+              <div className="status-icon assumptions">
+                <AlertCircle size={16} />
+              </div>
+              <span className="status-label">Assumptions</span>
+              <span className="status-count">{verificationCounts.assumptions}</span>
+            </div>
+          )}
+          {verificationCounts.unverified > 0 && (
+            <div className="status-item">
+              <div className="status-icon unverified">
+                <HelpCircle size={16} />
+              </div>
+              <span className="status-label">Unverified</span>
+              <span className="status-count">{verificationCounts.unverified}</span>
             </div>
           )}
         </div>

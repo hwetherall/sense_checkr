@@ -1360,3 +1360,66 @@
   opacity: 0.6;
   cursor: not-allowed;
 } 
+
+/* Status Summary Icons */
+.status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-600);
+}
+
+.status-icon.verified-true {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.status-icon.verified-false {
+  background-color: var(--color-error);
+  color: white;
+}
+
+.status-icon.partially-true {
+  background-color: var(--color-warning);
+  color: white;
+}
+
+.status-icon.needs-context {
+  background-color: var(--color-accent);
+  color: white;
+}
+
+.status-icon.not-found {
+  background-color: var(--color-gray-500);
+  color: white;
+}
+
+.status-icon.assumptions {
+  background-color: var(--color-warning);
+  color: white;
+}
+
+.status-icon.unverified {
+  background-color: var(--color-gray-400);
+  color: white;
+}
+
+/* Legacy status icons for backward compatibility */
+.status-icon.true {
+  background-color: var(--color-success);
+  color: white;
+}
+
+.status-icon.false {
+  background-color: var(--color-error);
+  color: white;
+}
+
+.status-icon.assumption {
+  background-color: var(--color-warning);
+  color: white;
+} 
