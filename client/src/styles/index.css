@@ -1964,3 +1964,196 @@
   background: var(--color-error-light);
   color: var(--color-error);
 }
+
+/* Link Card Verification Animations */
+.link-card.animating {
+  pointer-events: none; /* Prevent interactions during animation */
+  position: relative;
+  z-index: 10;
+}
+
+/* Valid Animation - Success bounce with green glow */
+.link-card.animating-valid {
+  animation: validSuccess 1s ease-in-out;
+}
+
+@keyframes validSuccess {
+  0% { transform: scale(1); }
+  20% { 
+    transform: scale(1.05); 
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+    border-color: var(--color-success);
+  }
+  40% { 
+    transform: scale(0.98) rotate(2deg); 
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.6);
+  }
+  60% { 
+    transform: scale(1.02) rotate(-1deg); 
+    box-shadow: 0 0 25px rgba(34, 197, 94, 0.5);
+  }
+  80% { 
+    transform: scale(1.01); 
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+  }
+  100% { 
+    transform: scale(1); 
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+/* Invalid Animation - Shake with red flash */
+.link-card.animating-invalid {
+  animation: invalidShake 1s ease-in-out;
+}
+
+@keyframes invalidShake {
+  0% { transform: translateX(0); }
+  10% { 
+    transform: translateX(-10px) scale(1.02); 
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+    border-color: var(--color-error);
+  }
+  20% { 
+    transform: translateX(10px) scale(1.02); 
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.6);
+  }
+  30% { 
+    transform: translateX(-8px) scale(1.01); 
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.5);
+  }
+  40% { 
+    transform: translateX(8px) scale(1.01); 
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+  }
+  50% { 
+    transform: translateX(-6px); 
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+  }
+  60% { 
+    transform: translateX(6px); 
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+  }
+  70% { 
+    transform: translateX(-4px); 
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.15);
+  }
+  80% { 
+    transform: translateX(2px); 
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.1);
+  }
+  90% { 
+    transform: translateX(-1px); 
+    box-shadow: 0 0 2px rgba(239, 68, 68, 0.05);
+  }
+  100% { 
+    transform: translateX(0); 
+    box-shadow: 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* Suspicious Animation - Pulse with orange glow */
+.link-card.animating-suspicious {
+  animation: suspiciousPulse 1s ease-in-out;
+}
+
+@keyframes suspiciousPulse {
+  0% { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+  25% { 
+    transform: scale(1.03); 
+    opacity: 0.9;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+    border-color: var(--color-warning);
+  }
+  50% { 
+    transform: scale(1.06); 
+    opacity: 0.8;
+    box-shadow: 0 0 40px rgba(245, 158, 11, 0.6);
+  }
+  75% { 
+    transform: scale(1.03); 
+    opacity: 0.9;
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.5);
+  }
+  100% { 
+    transform: scale(1); 
+    opacity: 1;
+    box-shadow: 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+/* Add subtle entrance animation for new cards */
+.link-card {
+  animation: cardEntrance 0.3s ease-out;
+}
+
+@keyframes cardEntrance {
+  0% { 
+    opacity: 0; 
+    transform: translateY(20px) scale(0.95); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
+}
+
+/* Button Animation Effects */
+.btn-animating {
+  transform: scale(0.95);
+  transition: all 0.1s ease;
+}
+
+.btn-success-glow {
+  background: var(--color-success) !important;
+  color: white !important;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.6) !important;
+  animation: successButtonPulse 1s ease-in-out;
+}
+
+.btn-error-glow {
+  background: var(--color-error) !important;
+  color: white !important;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.6) !important;
+  animation: errorButtonPulse 1s ease-in-out;
+}
+
+.btn-warning-glow {
+  background: var(--color-warning) !important;
+  color: white !important;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.6) !important;
+  animation: warningButtonPulse 1s ease-in-out;
+}
+
+@keyframes successButtonPulse {
+  0%, 100% { 
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.6); 
+  }
+  50% { 
+    box-shadow: 0 0 25px rgba(34, 197, 94, 0.8); 
+    transform: scale(1.05);
+  }
+}
+
+@keyframes errorButtonPulse {
+  0%, 100% { 
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); 
+  }
+  50% { 
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.8); 
+    transform: scale(1.05);
+  }
+}
+
+@keyframes warningButtonPulse {
+  0%, 100% { 
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.6); 
+  }
+  50% { 
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.8); 
+    transform: scale(1.05);
+  }
+}
