@@ -57,11 +57,11 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
   const getStatusText = () => {
     switch (link.status) {
       case 'valid':
-        return 'Valid';
+        return 'Good Link';
       case 'invalid':
-        return 'Invalid';
+        return 'Broken Link';
       case 'suspicious':
-        return 'Suspicious';
+        return 'Bad Source';
       default:
         return 'Unverified';
     }
@@ -150,7 +150,7 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
             disabled={link.status === 'valid' || isAnimating}
           >
             <Check size={16} />
-            Valid
+            Good Link
           </button>
           <button
             onClick={() => handleStatusChange('invalid')}
@@ -158,7 +158,7 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
             disabled={link.status === 'invalid' || isAnimating}
           >
             <X size={16} />
-            Invalid
+            Broken Link
           </button>
           <button
             onClick={() => handleStatusChange('suspicious')}
@@ -166,7 +166,7 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
             disabled={link.status === 'suspicious' || isAnimating}
           >
             <AlertTriangle size={16} />
-            Suspicious
+            Bad Source
           </button>
         </div>
       </div>

@@ -64,7 +64,7 @@ export function LinkProgressIndicator({ links, isTextCollapsed, onToggleTextColl
           <div className="status-icon valid">
             <Check size={16} />
           </div>
-          <span className="status-label">Valid</span>
+          <span className="status-label">Good Link</span>
           <span className="status-count">{stats.valid}</span>
         </div>
 
@@ -72,7 +72,7 @@ export function LinkProgressIndicator({ links, isTextCollapsed, onToggleTextColl
           <div className="status-icon invalid">
             <X size={16} />
           </div>
-          <span className="status-label">Invalid</span>
+          <span className="status-label">Broken Link</span>
           <span className="status-count">{stats.invalid}</span>
         </div>
 
@@ -80,7 +80,7 @@ export function LinkProgressIndicator({ links, isTextCollapsed, onToggleTextColl
           <div className="status-icon suspicious">
             <AlertTriangle size={16} />
           </div>
-          <span className="status-label">Suspicious</span>
+          <span className="status-label">Bad Source</span>
           <span className="status-count">{stats.suspicious}</span>
         </div>
 
