@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { AppState, AppAction } from '../types';
+import React, { createContext, useContext, useReducer, ReactNode, useCallback } from 'react';
+import { AppState, AppAction, Claim, Document, Link, Mission } from '../types';
 
 interface AppContextType {
   state: AppState;
@@ -21,6 +21,10 @@ const initialState: AppState = {
   // Link verification state
   linkText: '',
   links: [],
+  // Mission state
+  missions: [],
+  currentMission: undefined,
+  currentChapter: undefined,
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -31,7 +35,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { 
         ...state, 
         appMode: action.payload,
-        currentStep: 'input', // Reset to input when switching modes
+        currentStep: action.payload === 'missions' ? 'dashboard' : 'input', // Go to dashboard for missions
         error: null // Clear any errors
       };
     
@@ -189,6 +193,82 @@ function appReducer(state: AppState, action: AppAction): AppState {
             ? { ...link, status: action.payload.status }
             : link
         ),
+      };
+    
+    // Mission actions
+    case 'SET_MISSIONS':
+      return { ...state, missions: action.payload };
+    
+    case 'ADD_MISSION':
+      return { ...state, missions: [...state.missions, action.payload] };
+    
+    case 'UPDATE_MISSION':
+      return {
+        ...state,
+        missions: state.missions.map(mission =>
+          mission.id === action.payload.id ? action.payload : mission
+        ),
+        currentMission: state.currentMission?.id === action.payload.id 
+          ? action.payload 
+          : state.currentMission,
+      };
+    
+    case 'SET_CURRENT_MISSION':
+      return { ...state, currentMission: action.payload };
+    
+    case 'SET_CURRENT_CHAPTER':
+      return { ...state, currentChapter: action.payload };
+    
+    case 'UPDATE_CHAPTER':
+      return {
+        ...state,
+        missions: state.missions.map(mission =>
+          mission.id === action.payload.missionId
+            ? {
+                ...mission,
+                chapters: mission.chapters.map(chapter =>
+                  chapter.id === action.payload.chapter.id ? action.payload.chapter : chapter
+                ),
+              }
+            : mission
+        ),
+        currentMission: state.currentMission?.id === action.payload.missionId
+          ? {
+              ...state.currentMission,
+              chapters: state.currentMission.chapters.map(chapter =>
+                chapter.id === action.payload.chapter.id ? action.payload.chapter : chapter
+              ),
+            }
+          : state.currentMission,
+        currentChapter: state.currentChapter?.id === action.payload.chapter.id
+          ? action.payload.chapter
+          : state.currentChapter,
+      };
+    
+    case 'UPDATE_CHAPTER_LINKS':
+      return {
+        ...state,
+        missions: state.missions.map(mission => ({
+          ...mission,
+          chapters: mission.chapters.map(chapter =>
+            chapter.id === action.payload.chapterId
+              ? { ...chapter, links: action.payload.links }
+              : chapter
+          ),
+        })),
+        currentMission: state.currentMission
+          ? {
+              ...state.currentMission,
+              chapters: state.currentMission.chapters.map(chapter =>
+                chapter.id === action.payload.chapterId
+                  ? { ...chapter, links: action.payload.links }
+                  : chapter
+              ),
+            }
+          : undefined,
+        currentChapter: state.currentChapter?.id === action.payload.chapterId
+          ? { ...state.currentChapter, links: action.payload.links }
+          : state.currentChapter,
       };
     
     case 'RESET':

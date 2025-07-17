@@ -1,9 +1,16 @@
 /* Sense Checkr - Main Stylesheet */
 
-/* Import base styles */
+/* Global styles and CSS reset */
 @import './globals.css';
+
+/* Typography and text styles */
 @import './typography.css';
+
+/* Component-specific styles */
 @import './components.css';
+
+/* Mission-specific styles */
+@import './missions.css';
 
 /* Component-specific styles */
 

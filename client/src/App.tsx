@@ -7,6 +7,7 @@ import { MemoInput } from './components/memo/MemoInput';
 import { MemoHighlighter } from './components/memo/MemoHighlighter';
 import { LinkInput } from './components/links/LinkInput';
 import { LinkHighlighter } from './components/links/LinkHighlighter';
+import { MissionDashboard } from './components/missions/MissionDashboard';
 import './styles/index.css';
 
 function AppContent() {
@@ -16,12 +17,15 @@ function AppContent() {
   const getLoadingMessage = () => {
     if (appMode === 'memo') {
       return 'Extracting claims from your investment memo...';
+    } else if (appMode === 'links') {
+      return 'Extracting links and matching them with claims...';
+    } else {
+      return 'Loading missions...';
     }
-    return 'Extracting links and matching them with claims...';
   };
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoading && appMode !== 'missions') {
       return <LoadingSpinner message={getLoadingMessage()} />;
     }
 
@@ -41,6 +45,10 @@ function AppContent() {
           {currentStep === 'verify' && <LinkHighlighter />}
         </>
       );
+    }
+
+    if (appMode === 'missions') {
+      return <MissionDashboard />;
     }
 
     return null;

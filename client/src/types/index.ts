@@ -51,8 +51,8 @@ export interface DocumentVerificationResult {
 }
 
 export interface AppState {
-  appMode: 'memo' | 'links'; // New tab mode
-  currentStep: 'input' | 'verify';
+  appMode: 'memo' | 'links' | 'missions'; // Added missions mode
+  currentStep: 'input' | 'verify' | 'dashboard'; // Added dashboard for missions
   memoText: string;
   claims: Claim[];
   isLoading: boolean;
@@ -65,11 +65,15 @@ export interface AppState {
   // Link verification state
   linkText: string;
   links: Link[];
+  // Mission state
+  missions: Mission[];
+  currentMission?: Mission;
+  currentChapter?: Chapter;
 }
 
 export type AppAction =
-  | { type: 'SET_APP_MODE'; payload: 'memo' | 'links' }
-  | { type: 'SET_STEP'; payload: 'input' | 'verify' }
+  | { type: 'SET_APP_MODE'; payload: 'memo' | 'links' | 'missions' }
+  | { type: 'SET_STEP'; payload: 'input' | 'verify' | 'dashboard' }
   | { type: 'SET_MEMO_TEXT'; payload: string }
   | { type: 'SET_CLAIMS'; payload: Claim[] }
   | { type: 'UPDATE_CLAIM_STATUS'; payload: { id: string; status: Claim['status'] } }
@@ -90,6 +94,14 @@ export type AppAction =
   | { type: 'SET_LINK_TEXT'; payload: string }
   | { type: 'SET_LINKS'; payload: Link[] }
   | { type: 'UPDATE_LINK_STATUS'; payload: { id: string; status: Link['status'] } }
+  // Mission actions
+  | { type: 'SET_MISSIONS'; payload: Mission[] }
+  | { type: 'ADD_MISSION'; payload: Mission }
+  | { type: 'UPDATE_MISSION'; payload: Mission }
+  | { type: 'SET_CURRENT_MISSION'; payload: Mission | undefined }
+  | { type: 'SET_CURRENT_CHAPTER'; payload: Chapter | undefined }
+  | { type: 'UPDATE_CHAPTER'; payload: { missionId: string; chapter: Chapter } }
+  | { type: 'UPDATE_CHAPTER_LINKS'; payload: { chapterId: string; links: Link[] } }
   | { type: 'RESET' };
 
 export interface ClaimExtractionResponse {
@@ -108,4 +120,56 @@ export interface LinkExtractionResponse {
 export interface SampleMemoResponse {
   sampleMemo: string;
   description: string;
+}
+
+// Mission types
+export interface Mission {
+  id: string;
+  name: string;
+  description?: string;
+  chapters: Chapter[];
+  createdAt: string;
+  updatedAt: string;
+  status: 'active' | 'completed';
+  totalLinks: number;
+  verifiedLinks: number;
+}
+
+export interface Chapter {
+  id: string;
+  missionId: string;
+  name: string;
+  order: number;
+  jsonContent: string;
+  links: Link[];
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  processedAt?: string;
+  processingTime?: number;
+  error?: string;
+  summary?: ChapterSummary;
+}
+
+export interface ChapterSummary {
+  totalLinks: number;
+  validLinks: number;
+  invalidLinks: number;
+  suspiciousLinks: number;
+  unverifiedLinks: number;
+  keyFindings?: string[];
+}
+
+export interface MissionSummary {
+  missionId: string;
+  missionName: string;
+  totalChapters: number;
+  completedChapters: number;
+  totalLinks: number;
+  linksByStatus: {
+    valid: number;
+    invalid: number;
+    suspicious: number;
+    unverified: number;
+  };
+  chapterSummaries: ChapterSummary[];
+  exportDate: string;
 } 

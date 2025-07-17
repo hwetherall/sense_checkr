@@ -30,6 +30,21 @@
   --color-red-500: #EF4444;
   --color-red-800: #991B1B;
   
+  /* Color aliases for missions */
+  --primary: var(--color-primary);
+  --primary-light: var(--color-primary-light);
+  --secondary: var(--color-secondary);
+  --success: var(--color-success);
+  --success-light: rgba(34, 139, 34, 0.1);
+  --danger: var(--color-error);
+  --danger-light: rgba(220, 20, 60, 0.1);
+  --warning: var(--color-warning);
+  --warning-light: rgba(255, 176, 0, 0.1);
+  --text-primary: var(--color-secondary);
+  --text-secondary: var(--color-gray-600);
+  --background-light: var(--color-background-light);
+  --border-color: var(--color-gray-200);
+  
   /* Spacing */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
