@@ -8,6 +8,57 @@ export function useLinkExtraction() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [isMatchingClaims, setIsMatchingClaims] = useState(false);
 
+  const matchLinksWithClaims = useCallback(async (linkText: string, links: Link[]) => {
+    if (links.length === 0) return;
+
+    setIsMatchingClaims(true);
+    dispatch({ type: 'SET_LOADING', payload: true });
+
+    try {
+      const response = await fetch(apiUrl('/api/claims/match-sources'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          linkText,
+          links: links.map(link => ({ id: link.id, url: link.url }))
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to match links with claims');
+      }
+
+      const data = await response.json();
+      const { linkClaimMatches } = data;
+
+      // Update links with their supported claims
+      const updatedLinks = links.map(link => {
+        const match = linkClaimMatches.find((m: any) => m.linkId === link.id);
+        if (match) {
+          return {
+            ...link,
+            supportedClaim: match.supportedClaim,
+            contextSnippet: match.contextSnippet,
+            claimConfidence: match.confidence
+          };
+        }
+        return link;
+      });
+
+      dispatch({ type: 'SET_LINKS', payload: updatedLinks });
+      console.log(`Successfully matched ${linkClaimMatches.length} links with claims`);
+
+    } catch (error) {
+      console.error('Error matching links with claims:', error);
+      // Don't throw error here, just log it - the link extraction still succeeded
+    } finally {
+      setIsMatchingClaims(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, [dispatch]);
+
   const extractLinks = useCallback(async (linkText: string) => {
     setIsExtracting(true);
     dispatch({ type: 'SET_LOADING', payload: true });
@@ -67,58 +118,7 @@ export function useLinkExtraction() {
       setIsExtracting(false);
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [dispatch]);
-
-  const matchLinksWithClaims = useCallback(async (linkText: string, links: Link[]) => {
-    if (links.length === 0) return;
-
-    setIsMatchingClaims(true);
-    dispatch({ type: 'SET_LOADING', payload: true });
-
-    try {
-      const response = await fetch(apiUrl('/api/claims/match-sources'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          linkText,
-          links: links.map(link => ({ id: link.id, url: link.url }))
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to match links with claims');
-      }
-
-      const data = await response.json();
-      const { linkClaimMatches } = data;
-
-      // Update links with their supported claims
-      const updatedLinks = links.map(link => {
-        const match = linkClaimMatches.find((m: any) => m.linkId === link.id);
-        if (match) {
-          return {
-            ...link,
-            supportedClaim: match.supportedClaim,
-            contextSnippet: match.contextSnippet,
-            claimConfidence: match.confidence
-          };
-        }
-        return link;
-      });
-
-      dispatch({ type: 'SET_LINKS', payload: updatedLinks });
-      console.log(`Successfully matched ${linkClaimMatches.length} links with claims`);
-
-    } catch (error) {
-      console.error('Error matching links with claims:', error);
-      // Don't throw error here, just log it - the link extraction still succeeded
-    } finally {
-      setIsMatchingClaims(false);
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [dispatch]);
+  }, [dispatch, matchLinksWithClaims]);
 
   const updateLinkStatus = useCallback(
     (linkId: string, status: Link['status']) => {

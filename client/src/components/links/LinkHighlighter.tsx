@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { LinksList } from './LinksList';
 import { LinkProgressIndicator } from './LinkProgressIndicator';

@@ -10,7 +10,6 @@ interface LinkCardProps {
 
 export function LinkCard({ link, onHover }: LinkCardProps) {
   const { updateLinkStatus } = useLinkExtraction();
-  const [showVerificationButtons, setShowVerificationButtons] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [animationType, setAnimationType] = useState<'valid' | 'invalid' | 'suspicious' | null>(null);
 
@@ -26,14 +25,12 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
       // Wait for animation to complete before updating status
       setTimeout(() => {
         updateLinkStatus(link.id, status);
-        setShowVerificationButtons(false);
         setIsAnimating(false);
         setAnimationType(null);
       }, 1000); // 1 second animation duration
     } else {
       // Handle unverified immediately without animation
       updateLinkStatus(link.id, status);
-      setShowVerificationButtons(false);
     }
   };
 

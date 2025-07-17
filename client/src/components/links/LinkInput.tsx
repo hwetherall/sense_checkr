@@ -1,5 +1,5 @@
 import React, { useState, useCallback, ChangeEvent } from 'react';
-import { FileText, Send, Upload, Link } from 'lucide-react';
+import { FileText, Upload, Link } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useLinkExtraction } from '../../hooks/useLinkExtraction';
 
