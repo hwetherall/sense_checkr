@@ -161,25 +161,25 @@ export function ChapterCard({
                   {link.status === 'unverified' ? (
                     <div className="verify-buttons">
                       <button 
-                        className="btn-icon btn-sm valid"
+                        className="btn-icon-only verify-btn valid"
                         title="Mark as valid"
                         onClick={() => handleLinkStatusChange(link.id, 'valid')}
                       >
-                        <Check size={14} />
+                        <Check size={16} />
                       </button>
                       <button 
-                        className="btn-icon btn-sm invalid"
+                        className="btn-icon-only verify-btn invalid"
                         title="Mark as broken"
                         onClick={() => handleLinkStatusChange(link.id, 'invalid')}
                       >
-                        <X size={14} />
+                        <X size={16} />
                       </button>
                       <button 
-                        className="btn-icon btn-sm suspicious"
+                        className="btn-icon-only verify-btn suspicious"
                         title="Mark as suspicious"
                         onClick={() => handleLinkStatusChange(link.id, 'suspicious')}
                       >
-                        <AlertCircle size={14} />
+                        <AlertCircle size={16} />
                       </button>
                     </div>
                   ) : (

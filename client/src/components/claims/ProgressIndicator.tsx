@@ -64,7 +64,7 @@ export function ProgressIndicator({ claims, processingTime, isTextCollapsed, onT
                   {isTextCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
                 </button>
               )}
-              <h3 className="headline-3">Verification Progress</h3>
+            <h3 className="headline-3">Verification Progress</h3>
             </div>
             {processingTime && (
               <p className="processing-time">

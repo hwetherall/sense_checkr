@@ -398,20 +398,49 @@
   gap: 0.5rem;
 }
 
-.btn-icon.valid:hover { 
-  background: var(--success-light); 
-  color: var(--success); 
-  transform: scale(1.1);
+/* Verification Button Overrides - Larger and more visible */
+.btn-icon-only.verify-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  position: relative;
 }
-.btn-icon.invalid:hover { 
-  background: var(--danger-light); 
-  color: var(--danger); 
-  transform: scale(1.1);
+
+.btn-icon-only.verify-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.5;
 }
-.btn-icon.suspicious:hover { 
-  background: var(--warning-light); 
-  color: var(--warning); 
-  transform: scale(1.1);
+
+.btn-icon-only.verify-btn.valid {
+  color: var(--color-success);
+}
+
+.btn-icon-only.verify-btn.invalid {
+  color: var(--color-error);
+}
+
+.btn-icon-only.verify-btn.suspicious {
+  color: var(--color-warning);
+}
+
+.btn-icon-only.verify-btn.valid:hover { 
+  background: var(--color-success);
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+.btn-icon-only.verify-btn.invalid:hover { 
+  background: var(--color-error);
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+.btn-icon-only.verify-btn.suspicious:hover { 
+  background: var(--color-warning);
+  color: white;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
 /* Enhanced Modal Styles */

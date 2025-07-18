@@ -23,7 +23,7 @@ export function MissionModal({ onClose, onSubmit, isLoading }: MissionModalProps
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Create New Mission</h3>
-          <button className="btn-icon" onClick={onClose}>
+          <button className="btn-icon-only" onClick={onClose}>
             <X size={20} />
           </button>
         </div>

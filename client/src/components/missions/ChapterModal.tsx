@@ -105,7 +105,7 @@ export function ChapterModal({ onClose, onSubmit, chapterNumber }: ChapterModalP
       <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Add Chapter {chapterNumber}</h3>
-          <button className="btn-icon" onClick={onClose}>
+          <button className="btn-icon-only" onClick={onClose}>
             <X size={20} />
           </button>
         </div>

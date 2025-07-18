@@ -103,7 +103,7 @@ export function MissionDetail() {
   return (
     <div className="mission-detail">
       <div className="detail-header">
-        <button className="btn-icon" onClick={handleBack}>
+        <button className="btn-icon-only" onClick={handleBack}>
           <ArrowLeft size={20} />
         </button>
         <div className="header-info">

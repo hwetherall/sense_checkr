@@ -832,7 +832,7 @@
 }
 
 /* Button Variants */
-.btn-icon {
+.btn-icon-only {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -847,7 +847,7 @@
   transition: all 0.2s ease;
 }
 
-.btn-icon:hover {
+.btn-icon-only:hover {
   background: var(--color-gray-100);
   color: var(--color-secondary);
 }

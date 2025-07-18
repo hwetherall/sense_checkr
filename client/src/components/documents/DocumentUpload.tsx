@@ -66,25 +66,21 @@ export function DocumentUpload() {
         <input
           ref={inputRef}
           type="file"
-          id="file-input"
           multiple
           accept=".xlsx,.xls,.pdf"
           onChange={handleChange}
           style={{ display: 'none' }}
         />
         
-        <label
-          htmlFor="file-input"
+        <div
           className={`upload-area ${dragActive ? 'drag-active' : ''} ${isUploading ? 'uploading' : ''}`}
+          onClick={onButtonClick}
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
         >
-          <div
-            className="upload-content"
-            onClick={onButtonClick}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
+          <div className="upload-content">
             <Upload size={24} />
             <p className="upload-text">
               {isUploading ? 'Uploading...' : 'Drop files here or click to upload'}
@@ -93,7 +89,7 @@ export function DocumentUpload() {
               Excel (.xlsx, .xls) and PDF files only • Max 50 files • 10MB per file
             </p>
           </div>
-        </label>
+        </div>
       </form>
 
       {displayError && (
