@@ -1,5 +1,5 @@
 import React, { useState, useCallback, ChangeEvent } from 'react';
-import { FileText, Send, Upload, Link } from 'lucide-react';
+import { FileText, Upload, Link } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useLinkExtraction } from '../../hooks/useLinkExtraction';
 
@@ -144,18 +144,18 @@ Please verify each link to check for any potential hallucinations or invalid ref
                 Drop files here or{' '}
                 <label htmlFor="file-upload" className="file-upload-trigger">
                   click to upload
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept=".txt,.json"
+                    onChange={handleFileInputChange}
+                    className="hidden-file-input"
+                  />
                 </label>
               </p>
               <p className="body-small" style={{ color: 'var(--color-gray-600)' }}>
                 Text (.txt) and JSON (.json) files only • Max 1 file • 5MB limit
               </p>
-              <input
-                id="file-upload"
-                type="file"
-                accept=".txt,.json"
-                onChange={handleFileInputChange}
-                className="hidden-file-input"
-              />
             </div>
           </div>
           <div className="form-divider">

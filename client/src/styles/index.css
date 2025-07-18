@@ -1433,7 +1433,7 @@
 }
 
 /* LinkInput Component Styles */
-.file-drop-zone {
+.memo-input-container .file-drop-zone {
   border: 2px dashed var(--color-gray-300);
   border-radius: var(--radius-md);
   padding: var(--spacing-xl);
@@ -1443,12 +1443,12 @@
   margin-bottom: var(--spacing-lg);
 }
 
-.file-drop-zone.drag-over {
+.memo-input-container .file-drop-zone.drag-over {
   border-color: var(--color-primary);
   background: var(--color-primary-light);
 }
 
-.drop-zone-content {
+.memo-input-container .drop-zone-content {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1456,21 +1456,27 @@
   color: var(--color-gray-600);
 }
 
-.file-upload-trigger {
+.memo-input-container .file-upload-trigger {
   color: var(--color-primary);
   cursor: pointer;
   text-decoration: underline;
   font-weight: 500;
 }
 
-.file-upload-trigger:hover {
+.memo-input-container .file-upload-trigger:hover {
   color: var(--color-primary-dark);
 }
 
-.hidden-file-input {
+.memo-input-container .hidden-file-input {
   position: absolute;
-  left: -9999px;
-  visibility: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Form divider improvements for LinkInput */

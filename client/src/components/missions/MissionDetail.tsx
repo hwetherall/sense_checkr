@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus, Play, Download, FileJson, AlertCircle, Check, X } from 'lucide-react';
+import { ArrowLeft, Plus, Play, Download, FileJson, AlertCircle, Check } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useMissions } from '../../hooks/useMissions';
 import { ChapterCard } from './ChapterCard';
@@ -50,35 +50,6 @@ export function MissionDetail() {
 
   const handleProcessAll = async () => {
     await processAllChapters(currentMission);
-  };
-
-  const handleExport = async (format: 'json' | 'pdf') => {
-    try {
-      const summary = await exportMissionSummary(currentMission.id);
-      
-      if (format === 'json') {
-        const blob = new Blob([JSON.stringify(summary, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentMission.name.replace(/\s+/g, '_')}_summary.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        // For now, export PDF as formatted JSON
-        // TODO: Implement proper PDF export for missions
-        const blob = new Blob([JSON.stringify(summary, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentMission.name.replace(/\s+/g, '_')}_summary.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-      
-    } catch (error) {
-      console.error('Failed to export:', error);
-    }
   };
 
   const handleDirectExport = async () => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Folder, ChevronRight, Download, AlertCircle } from 'lucide-react';
+import { Plus, Folder, ChevronRight, AlertCircle } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useMissions } from '../../hooks/useMissions';
 import { LoadingSpinner } from '../common/LoadingSpinner';

@@ -231,16 +231,22 @@ async function extractLinksFromJson(jsonContent, chapterId) {
     const jsonData = JSON.parse(jsonContent);
     const jsonText = JSON.stringify(jsonData, null, 2);
     
-    // Extract links using regex patterns
+    // Helper function to clean URLs by removing trailing punctuation
+    const cleanUrl = (url) => {
+      // Remove trailing punctuation characters that commonly appear after URLs
+      return url.replace(/[.,;:!?\]}>)\-_]+$/, '');
+    };
+    
+    // Extract links using improved regex patterns
     const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    const urlRegex = /https?:\/\/[^\s\]},;"']+/g;
+    const urlRegex = /https?:\/\/[^\s\]},;"'<>()]+/g;
     const links = [];
     const seenUrls = new Set();
     
     // Extract markdown-formatted links
     let match;
     while ((match = markdownLinkRegex.exec(jsonText)) !== null) {
-      const url = match[2];
+      const url = cleanUrl(match[2]);
       if (!seenUrls.has(url)) {
         seenUrls.add(url);
         links.push({
@@ -254,7 +260,7 @@ async function extractLinksFromJson(jsonContent, chapterId) {
     
     // Extract plain URLs
     while ((match = urlRegex.exec(jsonText)) !== null) {
-      const url = match[0];
+      const url = cleanUrl(match[0]);
       if (!seenUrls.has(url)) {
         seenUrls.add(url);
         links.push({

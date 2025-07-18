@@ -285,9 +285,16 @@ ${memoContext}
   async processPerplexityResponse(perplexityResponse, originalClaim) {
     console.log('Raw Perplexity response:', perplexityResponse);
     
-    // First, extract any URLs directly from the response
-    const urlRegex = /https?:\/\/[^\s\)]+/g;
-    const extractedSources = perplexityResponse.match(urlRegex) || [];
+    // Helper function to clean URLs by removing trailing punctuation
+    const cleanUrl = (url) => {
+      // Remove trailing punctuation characters that commonly appear after URLs
+      return url.replace(/[.,;:!?\]}>)\-_]+$/, '');
+    };
+    
+    // First, extract any URLs directly from the response with improved regex
+    const urlRegex = /https?:\/\/[^\s\)<>{}]+/g;
+    const rawSources = perplexityResponse.match(urlRegex) || [];
+    const extractedSources = rawSources.map(cleanUrl);
     console.log('Extracted sources from response:', extractedSources);
     
     const systemPrompt = `You are processing a fact-checking response from Perplexity. Extract and structure the information for display.
@@ -410,10 +417,10 @@ ${perplexityResponse}`;
       status = 'needs_context';
     }
     
-    // Extract URLs with improved regex
-    const urlRegex = /https?:\/\/[^\s\)\]\,\;]+/g;
+    // Extract URLs with improved regex - reuse the cleanUrl function
+    const urlRegex = /https?:\/\/[^\s\)<>{}]+/g;
     const sources = (perplexityResponse.match(urlRegex) || [])
-      .map(url => url.replace(/[,.\)\]\;]+$/, '')) // Clean trailing punctuation
+      .map(cleanUrl) // Use the same cleaning function
       .filter(url => url.startsWith('http'));
     
     console.log('Fallback extracted sources:', sources);

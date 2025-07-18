@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { Mission, Chapter, Link, MissionSummary } from '../types';
+import { Mission, Link, MissionSummary } from '../types';
 import { apiUrl } from '../config/api';
 
 export function useMissions() {
@@ -135,8 +135,6 @@ export function useMissions() {
       );
       
       if (!response.ok) throw new Error('Failed to update link status');
-      
-      const data = await response.json();
       
       // Update link in current chapter
       if (state.currentChapter?.id === chapterId) {

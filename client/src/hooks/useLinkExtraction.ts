@@ -16,18 +16,25 @@ export function useLinkExtraction() {
     try {
       // Extract markdown links using regex
       const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-      // Extract plain URLs using regex
-      const urlRegex = /https?:\/\/[^\s\]},;"']+/g;
+      // Improved URL regex that avoids trailing punctuation
+      const urlRegex = /https?:\/\/[^\s\]},;"'<>()]+/g;
       const links: Link[] = [];
       let match;
+      
+      // Helper function to clean URLs by removing trailing punctuation
+      const cleanUrl = (url: string): string => {
+        // Remove trailing punctuation characters that commonly appear after URLs
+        return url.replace(/[.,;:!?\]}>)\-_]+$/, '');
+      };
       
       // First, extract markdown-formatted links
       while ((match = markdownLinkRegex.exec(linkText)) !== null) {
         const linkId = `link-${Date.now()}-${links.length}`;
+        const cleanedUrl = cleanUrl(match[2]);
         links.push({
           id: linkId,
           text: match[1], // Link text
-          url: match[2],  // Link URL
+          url: cleanedUrl,  // Cleaned URL
           status: 'unverified'
         });
       }
@@ -36,15 +43,20 @@ export function useLinkExtraction() {
       const markdownUrls = new Set(links.map(link => link.url));
       while ((match = urlRegex.exec(linkText)) !== null) {
         const url = match[0];
+        const cleanedUrl = cleanUrl(url);
+        
         // Skip if this URL is already captured as part of a markdown link
-        if (!markdownUrls.has(url)) {
+        // Also check if cleaned URL is already captured
+        if (!markdownUrls.has(url) && !markdownUrls.has(cleanedUrl)) {
           const linkId = `link-${Date.now()}-${links.length}`;
           links.push({
             id: linkId,
-            text: `Plain URL: ${url}`, // Generate descriptive text for plain URLs
-            url: url,
+            text: `Plain URL: ${cleanedUrl.substring(0, 50)}...`, // Use cleaned URL for display
+            url: cleanedUrl,
             status: 'unverified'
           });
+          // Add to set to prevent duplicates
+          markdownUrls.add(cleanedUrl);
         }
       }
 
@@ -67,6 +79,7 @@ export function useLinkExtraction() {
       setIsExtracting(false);
       dispatch({ type: 'SET_LOADING', payload: false });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
   const matchLinksWithClaims = useCallback(async (linkText: string, links: Link[]) => {

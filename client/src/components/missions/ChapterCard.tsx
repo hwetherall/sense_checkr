@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Play, AlertCircle, Check, X, Link as LinkIcon } from 'lucide-react';
 import { Chapter } from '../../types';
 import { useMissions } from '../../hooks/useMissions';
-import { useApp } from '../../contexts/AppContext';
 
 interface ChapterCardProps {
   chapter: Chapter;
@@ -19,14 +18,8 @@ export function ChapterCard({
   onProcess, 
   isProcessing 
 }: ChapterCardProps) {
-  const { dispatch } = useApp();
   const { updateLinkStatus } = useMissions();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [expandedLinkId, setExpandedLinkId] = useState<string | null>(null);
-
-  const handleViewChapter = () => {
-    dispatch({ type: 'SET_CURRENT_CHAPTER', payload: chapter });
-  };
 
   const handleLinkStatusChange = async (linkId: string, status: 'valid' | 'invalid' | 'suspicious') => {
     await updateLinkStatus(missionId, chapter.id, linkId, status);
