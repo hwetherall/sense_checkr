@@ -17,6 +17,10 @@ export interface Link {
   supportedClaim?: string;
   contextSnippet?: string;
   claimConfidence?: number;
+  // Link validation fields
+  validationStatus?: 'pending' | 'working' | 'broken' | 'restricted' | 'error';
+  httpStatus?: number;
+  validationError?: string;
 }
 
 export interface PerplexityResult {

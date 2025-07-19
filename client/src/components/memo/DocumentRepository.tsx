@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { FileText, X, ChevronDown, ChevronUp, File, RotateCcw, AlertTriangle } from 'lucide-react';
-import { DocumentUpload } from './DocumentUpload';
+import { FileUpload } from '../common/FileUpload';
 import { useDocumentManagement } from '../../hooks/useDocumentManagement';
 import { Document } from '../../types';
 
 export function DocumentRepository() {
-  const { documents, fetchDocuments, deleteDocument, clearAllDocuments } = useDocumentManagement();
+  const { documents, fetchDocuments, deleteDocument, clearAllDocuments, uploadDocuments, validateFiles, isUploading, uploadError } = useDocumentManagement();
   const [isExpanded, setIsExpanded] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetch documents on mount
@@ -48,6 +49,22 @@ export function DocumentRepository() {
     });
   };
 
+  const handleFiles = async (files: File[]) => {
+    setValidationError(null);
+    
+    // Validate files
+    const validation = validateFiles(files);
+    if (!validation.valid) {
+      setValidationError(validation.error || 'Invalid files');
+      return;
+    }
+
+    // Upload files
+    await uploadDocuments(files);
+  };
+
+  const displayError = validationError || uploadError;
+
   return (
     <>
       <div className="document-repository">
@@ -80,7 +97,18 @@ export function DocumentRepository() {
 
         {isExpanded && (
           <div className="repository-content">
-            <DocumentUpload />
+            <FileUpload
+              onFileUpload={handleFiles}
+              accept=".xlsx,.xls,.pdf"
+              multiple={true}
+              maxFiles={50}
+              maxFileSize="10MB"
+              title="Drop files here or click to upload"
+              subtitle="Excel (.xlsx, .xls) and PDF files only"
+              fileTypes="Excel and PDF"
+              disabled={isUploading}
+              error={displayError}
+            />
 
             {documents.length > 0 && (
               <div className="document-list">

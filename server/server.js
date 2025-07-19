@@ -64,6 +64,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/claims', require('./routes/api/claims'));
 app.use('/api/documents', require('./routes/api/documents'));
+app.use('/api/links', require('./routes/api/links'));
 app.use('/api/missions', require('./routes/api/missions'));
 
 // Health check endpoint

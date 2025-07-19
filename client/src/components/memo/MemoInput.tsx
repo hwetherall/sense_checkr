@@ -2,7 +2,7 @@ import React, { useState, useCallback, ChangeEvent } from 'react';
 import { FileText, Send, Building2, Briefcase } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useClaimExtraction } from '../../hooks/useClaimExtraction';
-import { DocumentRepository } from '../documents/DocumentRepository';
+import { DocumentRepository } from './DocumentRepository';
 
 export function MemoInput() {
   const { state, dispatch } = useApp();

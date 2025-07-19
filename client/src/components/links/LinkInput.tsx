@@ -1,5 +1,6 @@
 import React, { useState, useCallback, ChangeEvent } from 'react';
-import { FileText, Upload, Link } from 'lucide-react';
+import { FileText, Link } from 'lucide-react';
+import { FileUpload } from '../common/FileUpload';
 import { useApp } from '../../contexts/AppContext';
 import { useLinkExtraction } from '../../hooks/useLinkExtraction';
 
@@ -7,7 +8,6 @@ export function LinkInput() {
   const { state, dispatch } = useApp();
   const { linkText, error } = state;
   const { extractLinks } = useLinkExtraction();
-  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleTextChange = useCallback(
     (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -56,33 +56,9 @@ export function LinkInput() {
     [dispatch, error]
   );
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragOver(false);
-      
-      const files = Array.from(e.dataTransfer.files);
+  const handleFiles = useCallback(
+    (files: File[]) => {
       if (files.length > 0) {
-        handleFileUpload(files[0]);
-      }
-    },
-    [handleFileUpload]
-  );
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  }, []);
-
-  const handleFileInputChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (files && files.length > 0) {
         handleFileUpload(files[0]);
       }
     },
@@ -132,32 +108,17 @@ Please verify each link to check for any potential hallucinations or invalid ref
           <label htmlFor="link-text" className="form-label">
             Text with Links
           </label>
-          <div
-            className={`file-drop-zone ${isDragOver ? 'drag-over' : ''}`}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-          >
-            <div className="drop-zone-content">
-              <Upload size={24} />
-              <p className="body-medium">
-                Drop files here or{' '}
-                <label htmlFor="file-upload" className="file-upload-trigger">
-                  click to upload
-                  <input
-                    id="file-upload"
-                    type="file"
-                    accept=".txt,.json"
-                    onChange={handleFileInputChange}
-                    className="hidden-file-input"
-                  />
-                </label>
-              </p>
-              <p className="body-small" style={{ color: 'var(--color-gray-600)' }}>
-                Text (.txt) and JSON (.json) files only • Max 1 file • 5MB limit
-              </p>
-            </div>
-          </div>
+          <FileUpload
+            onFileUpload={handleFiles}
+            accept=".txt,.json"
+            multiple={false}
+            maxFiles={1}
+            maxFileSize="5MB"
+            title="Drop files here or click to upload"
+            subtitle="Text (.txt) and JSON (.json) files only"
+            fileTypes="Text and JSON"
+            className="memo-input-container"
+          />
           <div className="form-divider">
             <span className="divider-text">or paste text directly</span>
           </div>

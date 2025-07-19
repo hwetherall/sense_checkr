@@ -272,6 +272,14 @@ async function extractLinksFromJson(jsonContent, chapterId) {
       }
     }
     
+    // Validate the extracted links
+    if (links.length > 0) {
+      const { validateLinks } = require('../../utils/linkValidator');
+      console.log(`Validating ${links.length} links for chapter ${chapterId}`);
+      const validatedLinks = await validateLinks(links, 3); // Lower concurrency for missions
+      return validatedLinks;
+    }
+    
     return links;
   } catch (error) {
     console.error('Error extracting links from JSON:', error);

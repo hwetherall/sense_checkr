@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Check, X, AlertCircle, HelpCircle, Globe, FileText, Download, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Claim } from '../../types';
-import { usePDFExport } from '../../hooks/usePDFExport';
-import { ExportModal } from '../common/ExportModal';
+import { Claim } from '../../../types';
+import { usePDFExport } from '../../../hooks/usePDFExport';
+import { ExportModal } from '../../common/ExportModal';
 
 interface ProgressIndicatorProps {
   claims: Claim[];

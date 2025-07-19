@@ -1,6 +1,6 @@
 import React from 'react';
 import { ClaimCard } from './ClaimCard';
-import { Claim } from '../../types';
+import { Claim } from '../../../types';
 
 interface ClaimsListProps {
   claims: Claim[];

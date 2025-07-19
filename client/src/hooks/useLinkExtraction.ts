@@ -63,9 +63,15 @@ export function useLinkExtraction() {
       // Set initial links
       dispatch({ type: 'SET_LINKS', payload: links });
 
-      // If we have links, match them with claims
+      // If we have links, validate them and match with claims
       if (links.length > 0) {
-        await matchLinksWithClaims(linkText, links);
+        // First validate the links
+        const validatedLinks = await validateLinks(links);
+        console.log('Links after validation:', validatedLinks.map((link: Link) => ({ id: link.id, status: link.status, validationStatus: link.validationStatus })));
+        
+        // Then match them with claims (this preserves the validation status and classification)
+        // Note: matchLinksWithClaims will dispatch the final state with both validation and claim data
+        await matchLinksWithClaims(linkText, validatedLinks);
       }
 
       dispatch({ type: 'SET_STEP', payload: 'verify' });
@@ -81,6 +87,59 @@ export function useLinkExtraction() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
+
+  const validateLinks = useCallback(async (links: Link[]) => {
+    if (links.length === 0) return links;
+
+    console.log(`Starting validation of ${links.length} links...`);
+
+    try {
+      const response = await fetch(apiUrl('/api/links/validate'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ links }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to validate links');
+      }
+
+      const data = await response.json();
+      const { validatedLinks } = data;
+
+      // Auto-classify links based on validation results
+      const classifiedLinks = validatedLinks.map((link: Link) => {
+        let status = link.status; // Keep original status by default
+
+        // Auto-classify based on validation results
+        if (link.validationStatus === 'broken') {
+          status = 'invalid'; // Mark broken links as invalid
+        } else if (link.validationStatus === 'restricted') {
+          status = 'suspicious'; // Mark restricted links as suspicious
+        }
+        // Note: Don't auto-classify 'working' links as 'valid' since they still need content verification
+
+        return {
+          ...link,
+          status
+        };
+      });
+
+      console.log(`Successfully validated ${classifiedLinks.length} links`);
+      return classifiedLinks;
+
+    } catch (error) {
+      console.error('Error validating links:', error);
+      // Return original links with pending validation status if validation fails
+      return links.map(link => ({
+        ...link,
+        validationStatus: 'error' as const,
+        validationError: 'Validation service unavailable'
+      }));
+    }
+  }, []);
 
   const matchLinksWithClaims = useCallback(async (linkText: string, links: Link[]) => {
     if (links.length === 0) return;

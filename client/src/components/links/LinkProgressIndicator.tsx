@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, X, AlertTriangle, HelpCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, X, AlertTriangle, HelpCircle, ChevronLeft, ChevronRight, Wifi, WifiOff, ShieldAlert } from 'lucide-react';
 import { Link } from '../../types';
 
 interface LinkProgressIndicatorProps {
@@ -13,6 +13,10 @@ export function LinkProgressIndicator({ links, isTextCollapsed, onToggleTextColl
     (acc, link) => {
       acc.total++;
       acc[link.status]++;
+      // Count validation status
+      if (link.validationStatus) {
+        acc.validation[link.validationStatus]++;
+      }
       return acc;
     },
     {
@@ -21,6 +25,13 @@ export function LinkProgressIndicator({ links, isTextCollapsed, onToggleTextColl
       valid: 0,
       invalid: 0,
       suspicious: 0,
+      validation: {
+        working: 0,
+        broken: 0,
+        restricted: 0,
+        error: 0,
+        pending: 0,
+      }
     }
   );
 
@@ -92,6 +103,44 @@ export function LinkProgressIndicator({ links, isTextCollapsed, onToggleTextColl
           <span className="status-count">{stats.unverified}</span>
         </div>
       </div>
+
+      {/* Link Validation Status */}
+      {stats.total > 0 && (stats.validation.working + stats.validation.broken + stats.validation.restricted > 0) && (
+        <div className="validation-summary">
+          <h4 className="validation-title">Link Health Status</h4>
+          <div className="validation-grid">
+            {stats.validation.working > 0 && (
+              <div className="validation-item">
+                <div className="validation-icon working">
+                  <Wifi size={14} />
+                </div>
+                <span className="validation-label">Working</span>
+                <span className="validation-count">{stats.validation.working}</span>
+              </div>
+            )}
+
+            {stats.validation.broken > 0 && (
+              <div className="validation-item">
+                <div className="validation-icon broken">
+                  <WifiOff size={14} />
+                </div>
+                <span className="validation-label">Broken</span>
+                <span className="validation-count">{stats.validation.broken}</span>
+              </div>
+            )}
+
+            {stats.validation.restricted > 0 && (
+              <div className="validation-item">
+                <div className="validation-icon restricted">
+                  <ShieldAlert size={14} />
+                </div>
+                <span className="validation-label">Restricted</span>
+                <span className="validation-count">{stats.validation.restricted}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {stats.total > 0 && (
         <div className="progress-summary">

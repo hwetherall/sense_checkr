@@ -446,6 +446,148 @@
   height: 12px;
 }
 
+/* Validation Status Badge */
+.validation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.validation-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+.validation-badge.validation-working {
+  background-color: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.validation-badge.validation-broken {
+  background-color: var(--color-error-light);
+  color: var(--color-error);
+}
+
+.validation-badge.validation-restricted {
+  background-color: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.validation-badge.validation-error {
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-600);
+}
+
+.validation-badge.validation-pending {
+  background-color: var(--color-accent-light);
+  color: var(--color-accent);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Validation Error Details */
+.validation-error-details {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: rgba(239, 68, 68, 0.05);
+  border: none !important;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.validation-error-details .error-label {
+  font-weight: 600;
+  color: var(--color-error);
+  display: inline;
+  margin-right: var(--spacing-xs);
+  border: none !important;
+}
+
+.validation-error-details .error-message {
+  color: var(--color-error);
+  font-weight: 500;
+  display: inline;
+  border: none;
+  background-color: transparent;
+  padding: 0;
+  padding-left: 4px;
+}
+
+/* Validation Summary in Progress Indicator */
+.validation-summary {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.validation-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-secondary);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.validation-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.validation-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-gray-50);
+}
+
+.validation-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: white;
+}
+
+.validation-icon.working {
+  background-color: var(--color-success);
+}
+
+.validation-icon.broken {
+  background-color: var(--color-error);
+}
+
+.validation-icon.restricted {
+  background-color: var(--color-warning);
+}
+
+.validation-label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-secondary);
+}
+
+.validation-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
 /* Compact Sources */
 .perplexity-sources-compact {
   display: flex;
@@ -1432,8 +1574,8 @@
   cursor: not-allowed;
 }
 
-/* LinkInput Component Styles */
-.memo-input-container .file-drop-zone {
+/* Unified FileUpload Component Styles */
+.upload-area {
   border: 2px dashed var(--color-gray-300);
   border-radius: var(--radius-md);
   padding: var(--spacing-xl);
@@ -1441,42 +1583,57 @@
   background: var(--color-gray-50);
   transition: all var(--transition-fast);
   margin-bottom: var(--spacing-lg);
+  cursor: pointer;
 }
 
-.memo-input-container .file-drop-zone.drag-over {
+.upload-area.drag-active {
   border-color: var(--color-primary);
   background: var(--color-primary-light);
 }
 
-.memo-input-container .drop-zone-content {
+.upload-area.uploading {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.upload-area:hover:not(.uploading) {
+  border-color: var(--color-gray-400);
+  background: var(--color-gray-100);
+}
+
+.upload-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-sm);
   color: var(--color-gray-600);
+  cursor: inherit;
 }
 
-.memo-input-container .file-upload-trigger {
-  color: var(--color-primary);
-  cursor: pointer;
-  text-decoration: underline;
+.upload-text {
+  margin: 0;
+  font-size: 1rem;
   font-weight: 500;
+  color: var(--color-gray-700);
 }
 
-.memo-input-container .file-upload-trigger:hover {
-  color: var(--color-primary-dark);
+.upload-hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-gray-500);
 }
 
-.memo-input-container .hidden-file-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+.upload-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-error-lightest);
+  border: 1px solid var(--color-error-light);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: 0.875rem;
 }
 
 /* Form divider improvements for LinkInput */

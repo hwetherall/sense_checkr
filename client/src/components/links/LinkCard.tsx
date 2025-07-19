@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, X, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Check, X, AlertTriangle, HelpCircle, Globe, Wifi, WifiOff, ShieldAlert, AlertCircle } from 'lucide-react';
 import { Link } from '../../types';
 import { useLinkExtraction } from '../../hooks/useLinkExtraction';
 
@@ -64,6 +64,63 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
     }
   };
 
+  const getValidationIcon = () => {
+    switch (link.validationStatus) {
+      case 'working':
+        return <Wifi size={14} />;
+      case 'broken':
+        return <WifiOff size={14} />;
+      case 'restricted':
+        return <ShieldAlert size={14} />;
+      case 'error':
+        return <AlertCircle size={14} />;
+      case 'pending':
+        return <Globe size={14} />;
+      default:
+        return null;
+    }
+  };
+
+  const getValidationText = () => {
+    if (!link.validationStatus) return null;
+    
+    switch (link.validationStatus) {
+      case 'working':
+        return `Working (${link.httpStatus})`;
+      case 'broken':
+        return `Broken (${link.httpStatus || 'Network Error'})`;
+      case 'restricted':
+        // Show specific restricted reason based on status code
+        if (link.httpStatus === 401) return 'Auth Required (401)';
+        if (link.httpStatus === 403) return 'Access Forbidden (403)';
+        if (link.httpStatus === 429) return 'Rate Limited (429)';
+        return `Access Restricted (${link.httpStatus})`;
+      case 'error':
+        return 'Validation Error';
+      case 'pending':
+        return 'Checking...';
+      default:
+        return null;
+    }
+  };
+
+  const getValidationClass = () => {
+    switch (link.validationStatus) {
+      case 'working':
+        return 'validation-working';
+      case 'broken':
+        return 'validation-broken';
+      case 'restricted':
+        return 'validation-restricted';
+      case 'error':
+        return 'validation-error';
+      case 'pending':
+        return 'validation-pending';
+      default:
+        return '';
+    }
+  };
+
   const getAnimationClass = () => {
     if (!isAnimating || !animationType) return '';
     return `animating animating-${animationType}`;
@@ -81,6 +138,12 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
             {getStatusIcon()}
             {getStatusText()}
           </span>
+          {link.validationStatus && (
+            <span className={`validation-badge ${getValidationClass()}`}>
+              {getValidationIcon()}
+              {getValidationText()}
+            </span>
+          )}
         </div>
       </div>
 
@@ -131,6 +194,14 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
             >
               {link.url}
             </a>
+          </div>
+        )}
+
+        {/* Show validation error details if any */}
+        {link.validationError && (
+          <div className="validation-error-details">
+            <span className="error-label">Validation Error:</span>
+            <span className="error-message">{link.validationError}</span>
           </div>
         )}
       </div>
