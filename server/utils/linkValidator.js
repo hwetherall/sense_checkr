@@ -301,7 +301,7 @@ Based on how well the article content supports this specific claim, provide your
     const response = await openrouter.makeRequest([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
-    ], 0.1, 'deepseek/deepseek-r1-distill-llama-70b'); // Low temperature for consistent scoring
+    ], 0.1, 'meta-llama/llama-4-maverick-17b-128e-instruct'); // Low temperature for consistent scoring
 
     const content = response.choices[0].message.content.trim();
     console.log('Raw LLM response:', content);
