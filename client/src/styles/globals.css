@@ -16,8 +16,11 @@
   --color-background: #FFFFFF;
   --color-background-light: #F8F9FA;
   --color-success: #228B22;
+  --color-success-light: rgba(34, 139, 34, 0.1);
   --color-warning: #FFB000;
+  --color-warning-light: rgba(255, 176, 0, 0.1);
   --color-error: #DC143C;
+  --color-error-light: rgba(220, 20, 60, 0.1);
   --color-gray-100: #F8F9FA;
   --color-gray-200: #E8E8E8;
   --color-gray-300: #D3D3D3;

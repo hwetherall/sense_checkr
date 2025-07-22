@@ -157,7 +157,14 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
           <div className="supported-claim-container">
             <div className="supported-claim">
               <span className="claim-label">Claim:</span>
-              <span className="claim-text">{link.supportedClaim}</span>
+              <span className="claim-text">
+                {link.supportedClaim} {'  '}
+                {link.claimConfidence && (
+                  <span className={`confidence-score-inline ${link.claimConfidence >= 7 ? 'high' : link.claimConfidence >= 4 ? 'medium' : 'low'}`}>
+                    {link.claimConfidence}/10
+                  </span>
+                )}
+              </span>
             </div>
             <div className="source-info">
               <span className="source-label">Source:</span>
@@ -171,11 +178,11 @@ export function LinkCard({ link, onHover }: LinkCardProps) {
                 {link.url}
               </a>
             </div>
-            {link.claimConfidence && (
-              <div className="confidence-info">
-                <span className="confidence-label">Match Confidence:</span>
-                <span className={`confidence-score ${link.claimConfidence >= 7 ? 'high' : link.claimConfidence >= 4 ? 'medium' : 'low'}`}>
-                  {link.claimConfidence}/10
+            {link.validationStatus === 'working' && typeof link.claimScore === 'number' && (
+              <div className="score-info">
+                <span className="source-label">Source X Claim Score:</span>
+                <span className={`claim-score ${link.claimScore >= 65 ? 'high' : link.claimScore >= 40 ? 'medium' : 'low'}`}>
+                  {link.claimScore}/100
                 </span>
               </div>
             )}

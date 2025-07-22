@@ -21,6 +21,11 @@ export interface Link {
   validationStatus?: 'pending' | 'working' | 'broken' | 'restricted' | 'error';
   httpStatus?: number;
   validationError?: string;
+  // Claim verification score (0-100) for working links
+  claimScore?: number;
+  // Scraped content from working links
+  scrapedContent?: string;
+  scrapeError?: string;
 }
 
 export interface PerplexityResult {

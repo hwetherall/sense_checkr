@@ -465,22 +465,18 @@
 }
 
 .validation-badge.validation-working {
-  background-color: var(--color-success-light);
   color: var(--color-success);
 }
 
 .validation-badge.validation-broken {
-  background-color: var(--color-error-light);
   color: var(--color-error);
 }
 
 .validation-badge.validation-restricted {
-  background-color: var(--color-warning-light);
   color: var(--color-warning);
 }
 
 .validation-badge.validation-error {
-  background-color: var(--color-gray-200);
   color: var(--color-gray-600);
 }
 
@@ -2105,6 +2101,12 @@
   gap: var(--spacing-sm);
 }
 
+.score-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
 .confidence-label {
   font-size: 12px;
   font-weight: 600;
@@ -2133,6 +2135,100 @@
 .confidence-score.low {
   background: var(--color-error-light);
   color: var(--color-error);
+}
+
+/* Inline Confidence Score */
+.confidence-score-inline {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
+.confidence-score-inline.high {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.confidence-score-inline.medium {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.confidence-score-inline.low {
+  background: var(--color-error-light);
+  color: var(--color-error);
+}
+
+/* Link Check Section */
+.link-check-section {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-accent);
+}
+
+.link-check-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-xs);
+}
+
+.link-check-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.claim-score-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.score-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-gray-700);
+}
+
+.claim-score {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  width: 60px;
+  text-align: center;
+  display: inline-block;
+}
+
+.claim-score.high {
+  background: var(--color-success-light);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+.claim-score.medium {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.claim-score.low {
+  background: var(--color-error-light);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+.validation-status {
+  font-size: 13px;
+  color: var(--color-gray-600);
+  font-weight: 500;
 }
 
 /* Link Card Verification Animations */

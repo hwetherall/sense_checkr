@@ -60,18 +60,26 @@ export function useLinkExtraction() {
         }
       }
 
-      // Set initial links
-      dispatch({ type: 'SET_LINKS', payload: links });
-
-      // If we have links, validate them and match with claims
+      // Process links efficiently: match with claims first, then validate with context
       if (links.length > 0) {
-        // First validate the links
-        const validatedLinks = await validateLinks(links);
-        console.log('Links after validation:', validatedLinks.map((link: Link) => ({ id: link.id, status: link.status, validationStatus: link.validationStatus })));
+        // First match links with claims (fast, lightweight operation)
+        const linksWithClaims = await matchLinksWithClaims(linkText, links);
         
-        // Then match them with claims (this preserves the validation status and classification)
-        // Note: matchLinksWithClaims will dispatch the final state with both validation and claim data
-        await matchLinksWithClaims(linkText, validatedLinks);
+        // Then validate links with their claim context (expensive operation, done once)
+        const finalLinks = await validateLinks(linksWithClaims);
+        
+        // Single state update with complete data
+        dispatch({ type: 'SET_LINKS', payload: finalLinks });
+        console.log('Final processed links:', finalLinks.map((link: Link) => ({ 
+          id: link.id, 
+          status: link.status, 
+          validationStatus: link.validationStatus,
+          claimScore: link.claimScore,
+          hasClaim: !!link.supportedClaim
+        })));
+      } else {
+        // No links found, set empty array
+        dispatch({ type: 'SET_LINKS', payload: [] });
       }
 
       dispatch({ type: 'SET_STEP', payload: 'verify' });
@@ -113,13 +121,10 @@ export function useLinkExtraction() {
       const classifiedLinks = validatedLinks.map((link: Link) => {
         let status = link.status; // Keep original status by default
 
-        // Auto-classify based on validation results
+        // Auto-classify as invalid for broken links
         if (link.validationStatus === 'broken') {
           status = 'invalid'; // Mark broken links as invalid
-        } else if (link.validationStatus === 'restricted') {
-          status = 'suspicious'; // Mark restricted links as suspicious
-        }
-        // Note: Don't auto-classify 'working' links as 'valid' since they still need content verification
+        } 
 
         return {
           ...link,
@@ -141,11 +146,10 @@ export function useLinkExtraction() {
     }
   }, []);
 
-  const matchLinksWithClaims = useCallback(async (linkText: string, links: Link[]) => {
-    if (links.length === 0) return;
+  const matchLinksWithClaims = useCallback(async (linkText: string, links: Link[]): Promise<Link[]> => {
+    if (links.length === 0) return links;
 
     setIsMatchingClaims(true);
-    dispatch({ type: 'SET_LOADING', payload: true });
 
     try {
       const response = await fetch(apiUrl('/api/claims/match-sources'), {
@@ -180,17 +184,17 @@ export function useLinkExtraction() {
         return link;
       });
 
-      dispatch({ type: 'SET_LINKS', payload: updatedLinks });
       console.log(`Successfully matched ${linkClaimMatches.length} links with claims`);
+      return updatedLinks;
 
     } catch (error) {
       console.error('Error matching links with claims:', error);
-      // Don't throw error here, just log it - the link extraction still succeeded
+      // Return original links if matching fails
+      return links;
     } finally {
       setIsMatchingClaims(false);
-      dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [dispatch]);
+  }, []);
 
   const updateLinkStatus = useCallback(
     (linkId: string, status: Link['status']) => {

@@ -44,23 +44,42 @@ router.post('/validate', async (req, res, next) => {
     const startTime = Date.now();
 
     // Validate links with retry logic
-    const validatedLinks = await validateLinks(links, 5); // 5 concurrent requests
+    const validatedLinks = await validateLinks(links, 10); // 10 concurrent requests
+
+    // Auto-classify links based on validation results only (not claim scores)
+    const classifiedLinks = validatedLinks.map(link => {
+      let autoStatus = link.status; // Keep existing status if already set
+
+      // Only auto-classify if status is still 'unverified'
+      if (link.status === 'unverified') {
+        if (link.validationStatus === 'broken' || link.validationStatus === 'error') {
+          autoStatus = 'invalid';
+        } else if (link.validationStatus === 'restricted') {
+          autoStatus = 'suspicious';
+        }
+      }
+
+      return {
+        ...link,
+        status: autoStatus
+      };
+    });
 
     const processingTime = Date.now() - startTime;
 
     // Generate summary
     const validationSummary = {
-      total: validatedLinks.length,
-      working: validatedLinks.filter(l => l.validationStatus === 'working').length,
-      broken: validatedLinks.filter(l => l.validationStatus === 'broken').length,
-      restricted: validatedLinks.filter(l => l.validationStatus === 'restricted').length,
-      error: validatedLinks.filter(l => l.validationStatus === 'error').length
+      total: classifiedLinks.length,
+      working: classifiedLinks.filter(l => l.validationStatus === 'working').length,
+      broken: classifiedLinks.filter(l => l.validationStatus === 'broken').length,
+      restricted: classifiedLinks.filter(l => l.validationStatus === 'restricted').length,
+      error: classifiedLinks.filter(l => l.validationStatus === 'error').length
     };
 
     console.log(`Link validation completed in ${processingTime}ms:`, validationSummary);
 
     res.json({
-      validatedLinks,
+      validatedLinks: classifiedLinks,
       validationSummary,
       processingTime
     });
